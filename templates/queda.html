@@ -4,14 +4,47 @@
 <meta charset="UTF-8" />
 
 <style>
-body { margin:0; display:flex; justify-content:center; align-items:center; }
-.card { width:700px; height:1058px; background:#fff; padding:40px; display:flex; flex-direction:column; justify-content:space-between; }
+* {
+  box-sizing: border-box;
+  text-transform: uppercase;
+  font-family: 'Inter';
+  color: #1F3C6E;
+}
 
-.texto-topo { font-size:26px; text-align:center; }
-.valor-texto { font-size:200px; font-weight:900; text-align:center; }
+body {
+  margin: 0;
+  width: 700px;
+  height: 1058px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
 
-.rodape { text-align:center; display:flex; flex-direction:column; gap:6px; }
-.info { font-size:16px; }
+.card {
+  width: 700px;
+  height: 1058px;
+  background: #fff;
+  padding: 40px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+/* CENTRO */
+.texto-topo { font-size: 26px; text-align:center; }
+.valor-texto { font-size: 200px; font-weight:900; text-align:center; }
+
+.complemento { text-align:center; }
+.legal { text-align:center; }
+
+/* RODAPÉ */
+.rodape {
+  text-align: center;
+}
+
+.info {
+  font-size: 18px;
+}
 </style>
 </head>
 
@@ -23,8 +56,8 @@ body { margin:0; display:flex; justify-content:center; align-items:center; }
 
 <div class="valor-texto">{{VALOR}}%</div>
 
-<div>{{COMPLEMENTO}}</div>
-<div>{{LEGAL}}</div>
+<div class="complemento">{{COMPLEMENTO}}</div>
+<div class="legal">{{LEGAL}}</div>
 
 <div class="rodape">
   <div class="info" id="uf">UF: {{UF}}</div>
@@ -36,7 +69,10 @@ body { margin:0; display:flex; justify-content:center; align-items:center; }
 
 <script>
 function hide(id,val){
- if(!val || val.includes("{{")) document.getElementById(id).style.display="none";
+ if(!val || val.includes("{{")){
+   const el = document.getElementById(id);
+   if(el) el.style.display="none";
+ }
 }
 hide("uf","{{UF}}");
 hide("urn","{{URN}}");
