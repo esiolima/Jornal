@@ -39,26 +39,26 @@ body {
   background: transparent;
 }
 
-/* 🔥 PADRÃO FINAL DA BORDA */
-.card {
+/* 🔥 CONTAINER EXTERNO (BORDA) */
+.card-wrapper {
   width: 700px;
   height: 1058px;
-
   border-radius: 40px;
   border: 10px solid #E0B84B;
+  overflow: hidden; /* 🔥 chave da correção */
+}
 
-  background-color: #ffffff;
-
-  /* CORREÇÃO DO FUNDO */
-  overflow: hidden;
+/* 🔥 CONTEÚDO INTERNO (FUNDO) */
+.card {
+  width: 100%;
+  height: 100%;
+  background: #ffffff;
 
   padding: 60px 40px 40px;
 
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-
-  position: relative;
 }
 
 /* TOPO */
@@ -136,55 +136,56 @@ body {
 
 <body>
 
-<div class="card">
+<!-- 🔥 WRAPPER NOVO -->
+<div class="card-wrapper">
 
-  <!-- TOPO -->
-  <div class="topo">
-    <div class="logo">
-      <img src="{{LOGO}}">
+  <div class="card">
+
+    <div class="topo">
+      <div class="logo">
+        <img src="{{LOGO}}">
+      </div>
+
+      <div class="tarja">
+        QUEDA DE PREÇO
+      </div>
     </div>
 
-    <div class="tarja">
-      QUEDA DE PREÇO
-    </div>
-  </div>
+    <div class="area-central">
 
-  <!-- CENTRO -->
-  <div class="area-central">
+      <div class="texto-topo">
+        {{TEXTO}}
+      </div>
 
-    <div class="texto-topo">
-      {{TEXTO}}
-    </div>
+      <div class="valor-texto">
+        {{VALOR}}%
+      </div>
 
-    <div class="valor-texto">
-      {{VALOR}}%
-    </div>
+      <div class="desconto">
+        DE DESCONTO
+      </div>
 
-    <div class="desconto">
-      DE DESCONTO
-    </div>
+      <div class="complemento">
+        {{COMPLEMENTO}}
+      </div>
 
-    <div class="complemento">
-      {{COMPLEMENTO}}
-    </div>
+      <div class="legal">
+        {{LEGAL}}
+      </div>
 
-    <div class="legal">
-      {{LEGAL}}
     </div>
 
-  </div>
+    <div class="rodape">
+      <div class="info" id="uf">UF: {{UF}}</div>
+      <div class="info" id="urn">URN: {{URN}}</div>
+      <div class="info" id="seg">Negócio do Cliente: {{SEGMENTO}}</div>
+    </div>
 
-  <!-- RODAPÉ -->
-  <div class="rodape">
-    <div class="info" id="uf">UF: {{UF}}</div>
-    <div class="info" id="urn">URN: {{URN}}</div>
-    <div class="info" id="seg">Negócio do Cliente: {{SEGMENTO}}</div>
   </div>
 
 </div>
 
 <script>
-// esconder campos vazios
 function hide(id,val){
  if(!val || val.includes("{{")){
    const el = document.getElementById(id);
