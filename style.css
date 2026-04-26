@@ -1,6 +1,7 @@
 body {
   font-family: Arial, sans-serif;
   padding: 20px;
+  background: #f5f5f5;
 }
 
 h1 {
@@ -10,14 +11,42 @@ h1 {
 button {
   padding: 10px 20px;
   cursor: pointer;
+  margin-left: 10px;
 }
 
-table {
-  margin-top: 20px;
-  border-collapse: collapse;
+/* GRID DE CARDS */
+#cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
+  margin-top: 30px;
 }
 
-th {
-  background: #333;
-  color: #fff;
+/* CARD */
+.card {
+  border: 2px solid #000;
+  padding: 16px;
+  background: #fff;
+  text-align: center;
+  border-radius: 8px;
+}
+
+/* ELEMENTOS */
+.categoria {
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+}
+
+.nome {
+  font-size: 16px;
+  font-weight: bold;
+  margin-bottom: 12px;
+}
+
+.preco {
+  font-size: 32px;
+  font-weight: bold;
+  color: red;
 }
