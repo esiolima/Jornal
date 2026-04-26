@@ -5,6 +5,22 @@
 <title>Cupom de Desconto</title>
 
 <style>
+@font-face {
+  font-family: 'Inter';
+  src: url('../fonts/Inter-Regular.ttf') format('truetype');
+  font-weight: 400;
+}
+@font-face {
+  font-family: 'Inter';
+  src: url('../fonts/Inter-Bold.ttf') format('truetype');
+  font-weight: 700;
+}
+@font-face {
+  font-family: 'Inter';
+  src: url('../fonts/Inter-Black.ttf') format('truetype');
+  font-weight: 900;
+}
+
 * {
   box-sizing: border-box;
   font-family: Inter, sans-serif;
@@ -13,6 +29,7 @@
 
 body {
   margin: 0;
+  background: transparent;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -20,79 +37,135 @@ body {
 
 .card {
   width: 700px;
-  height: 1058px;
+  height: 1057.5px;
   border: 6px solid #F2C94C;
   border-radius: 48px;
-  background: #fff;
+  background: #ffffff;
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 20px;
+  padding: 0 20px;
+  overflow: visible;
   position: relative;
   color: #1F3C6E;
 }
 
-.logo img {
-  max-height: 120px;
+/* SELO */
+.selo {
+  position: absolute;
+  top: -6px;
+  left: -6px;
+  width: 130px;
+  height: 65px;
+  display: none;
+  z-index: 999;
 }
 
+.selo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* LOGO */
+.logo {
+  margin-top: 60px;
+  height: 154px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.logo img {
+  max-height: 154px;
+  max-width: 520px;
+}
+
+/* TEXTO */
 .condicao {
-  margin: 20px 0;
+  margin-top: 35px;
+  margin-bottom: 60px;
+  max-width: 550px;
   font-size: 28px;
   text-align: center;
 }
 
+/* VALOR */
 .percentual {
   display: flex;
   align-items: flex-end;
+  justify-content: center;
 }
 
-.numero {
-  font-weight: 900;
-  font-size: 180px;
-}
-
+.numero,
 .percent {
-  font-size: 60px;
+  font-weight: 900;
+  font-size: clamp(120px, 25vw, 270px);
 }
 
 .desconto {
-  font-size: 40px;
-  font-weight: bold;
+  margin-top: 10px;
+  font-size: clamp(40px, 5vw, 60px);
+  font-weight: 700;
 }
 
+/* CUPOM */
 .cupom-box {
+  margin-top: 30px;
   width: 600px;
   height: 140px;
   background: #16A7E0;
   border-radius: 20px;
+  display: grid;
+  grid-template-columns: 90px 1fr;
+}
+
+.cupom-label {
   display: flex;
-  justify-content: center;
   align-items: center;
+  justify-content: center;
+}
+
+.cupom-label span {
+  transform: rotate(-90deg);
+  font-weight: 700;
+  color: #fff;
+}
+
+.cupom-codigo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 900;
+  color: #fff;
+  padding: 0 40px;
+  overflow: hidden;
 }
 
 #cupom-text {
-  font-size: 90px;
-  color: white;
+  font-size: 110px;
+  white-space: nowrap;
 }
 
-/* RODAPÉ */
+/* RODAPÉ AJUSTADO (SEM QUEBRAR DESIGN) */
 .rodape {
-  margin-top: auto;
+  margin-bottom: 30px;
   text-align: center;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
 }
 
 .info {
-  font-size: 16px;
+  font-size: 18px; /* menor */
+  line-height: 1.2;
 }
 </style>
 </head>
 
 <body>
 <div class="card">
+
+  <div class="selo" id="selo-container">
+    <img id="selo-img">
+  </div>
 
   <div class="logo">
     <img src="{{LOGO}}">
@@ -101,45 +174,63 @@ body {
   <div class="condicao">{{TEXTO}}</div>
 
   <div class="percentual">
-    <div class="numero" id="valor-text">{{VALOR}}</div>
+    <div class="numero">{{VALOR}}</div>
     <div class="percent">%</div>
   </div>
 
   <div class="desconto">DE DESCONTO</div>
 
   <div class="cupom-box">
-    <span id="cupom-text">{{CUPOM}}</span>
+    <div class="cupom-label">
+      <span>CUPOM</span>
+    </div>
+    <div class="cupom-codigo">
+      <span id="cupom-text">{{CUPOM}}</span>
+    </div>
   </div>
 
-  <div class="rodape" id="rodape">
-    <div class="info" id="info-uf">UF: {{UF}}</div>
-    <div class="info" id="info-urn">URN: {{URN}}</div>
-    <div class="info" id="info-segmento">Negócio do Cliente: {{SEGMENTO}}</div>
+  <!-- RODAPÉ NOVO -->
+  <div class="rodape">
+    <div class="info" id="uf">UF: {{UF}}</div>
+    <div class="info" id="urn">URN: {{URN}}</div>
+    <div class="info" id="seg">Negócio do Cliente: {{SEGMENTO}}</div>
   </div>
 
 </div>
 
 <script>
-// AJUSTE VALOR
 (function () {
-  const el = document.getElementById("valor-text");
-  let size = 180;
-  while (el.scrollWidth > el.parentElement.clientWidth && size > 40) {
-    size--;
-    el.style.fontSize = size + "px";
+
+  // AJUSTE CUPOM (original mantido)
+  const el = document.getElementById("cupom-text");
+  if (el) {
+    let size = 110;
+    while (el.scrollWidth > el.parentElement.clientWidth && size > 20) {
+      size--;
+      el.style.fontSize = size + "px";
+    }
   }
+
+  // OCULTAR CAMPOS VAZIOS
+  function hide(id, val){
+    if (!val || val.includes("{{")) {
+      const el = document.getElementById(id);
+      if (el) el.style.display = "none";
+    }
+  }
+
+  hide("uf","{{UF}}");
+  hide("urn","{{URN}}");
+  hide("seg","{{SEGMENTO}}");
+
+  // SELO
+  const selo = "{{SELO}}";
+  if (selo && selo !== "{{SELO}}") {
+    document.getElementById("selo-img").src = selo;
+    document.getElementById("selo-container").style.display = "block";
+  }
+
 })();
-
-// OCULTAR CAMPOS VAZIOS
-function hide(id, val) {
-  if (!val || val.includes("{{")) {
-    document.getElementById(id).style.display = "none";
-  }
-}
-
-hide("info-uf", "{{UF}}");
-hide("info-urn", "{{URN}}");
-hide("info-segmento", "{{SEGMENTO}}");
 </script>
 
 </body>
