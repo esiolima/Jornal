@@ -5,6 +5,12 @@ const XLSX = require('xlsx');
 function gerarHTML() {
   const fileInput = document.getElementById('upload');
   const file = fileInput.files[0];
+
+  if (!file) {
+    alert("Por favor, faça o upload de uma planilha.");
+    return;
+  }
+
   const reader = new FileReader();
 
   reader.onload = function (e) {
@@ -12,8 +18,16 @@ function gerarHTML() {
     const workbook = XLSX.read(data, { type: 'array' });
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
     const jsonData = XLSX.utils.sheet_to_json(sheet);
+
+    // Verificar se a planilha foi lida corretamente
+    console.log("Dados lidos da planilha:", jsonData);
     
-    // Ordenando os dados pela coluna 'ORDEM'
+    if (!jsonData || jsonData.length === 0) {
+      alert("A planilha não contém dados válidos.");
+      return;
+    }
+
+    // Ordenando os dados pela coluna 'ORDEN'
     jsonData.sort((a, b) => a.ORDEN - b.ORDEN);
 
     let htmlContent = `
