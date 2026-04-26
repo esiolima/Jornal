@@ -45,19 +45,18 @@ body {
   flex-direction: column;
   align-items: center;
   padding: 0 20px;
-  overflow: visible; /* permite ultrapassar moldura */
+  overflow: visible;
   position: relative;
   color: #1F3C6E;
 }
 
-/* ===== SELO DINÂMICO ===== */
+/* ===== SELO ===== */
 .selo {
   position: absolute;
   top: -6px;
   left: -6px;
   width: 130px;
   height: 65px;
-  background: transparent;
   display: none;
   z-index: 999;
 }
@@ -66,7 +65,6 @@ body {
   width: 100%;
   height: 100%;
   object-fit: contain;
-  display: block;
 }
 
 /* ===== LOGO ===== */
@@ -84,25 +82,21 @@ body {
   object-fit: contain;
 }
 
-/* ===== TEXTO SUPERIOR ===== */
+/* ===== TEXTO ===== */
 .condicao {
   margin-top: 35px;
   margin-bottom: 60px;
   max-width: 550px;
   font-size: 28px;
-  font-weight: 400;
-  line-height: 1.15;
   text-align: center;
-  word-break: break-word;
 }
 
-/* ===== BENEFÍCIO ===== */
+/* ===== VALOR ===== */
 .percentual {
   display: flex;
   align-items: flex-end;
   justify-content: center;
   width: 100%;
-  padding: 0 30px;
   margin-bottom: 10px;
 }
 
@@ -110,11 +104,6 @@ body {
 .percent {
   font-weight: 900;
   font-size: clamp(120px, 25vw, 270px);
-  line-height: 1;
-}
-
-.percent {
-  margin-left: 6px;
 }
 
 .desconto {
@@ -128,40 +117,25 @@ body {
   margin-top: 20px;
   max-width: 550px;
   font-size: 24px;
-  line-height: 1.15;
   text-align: center;
 }
 
-/* ===== LEGAL ===== */
 .legal {
   margin-top: 25px;
   max-width: 550px;
   font-size: 18px;
-  line-height: 1.15;
   text-align: center;
-  word-break: break-word;
 }
 
-/* ===== ESPAÇO FLEX ===== */
-.espaco-flexivel {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-}
-
-/* ===== CUPOM BOX ===== */
+/* ===== CUPOM ===== */
 .cupom-box {
   margin-top: 30px;
-  margin-bottom: 15px;
   width: 600px;
   height: 140px;
   background: #16A7E0;
   border-radius: 20px;
   display: grid;
   grid-template-columns: 90px 1fr;
-  overflow: hidden;
 }
 
 .cupom-label {
@@ -172,47 +146,36 @@ body {
 
 .cupom-label span {
   transform: rotate(-90deg);
-  font-size: clamp(20px, 2.4vw, 28px);
   font-weight: 700;
-  color: #ffffff;
+  color: #fff;
 }
 
 .cupom-codigo {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0 40px; /* Padding generoso nas laterais */
-  width: 100%;
-  height: 100%;
   font-weight: 900;
-  color: #ffffff;
-  overflow: hidden;
-  box-sizing: border-box;
+  color: #fff;
 }
 
 #cupom-text {
   font-size: 110px;
-  line-height: 1;
   white-space: nowrap;
-  display: inline-block;
-  margin-right: 20px; /* Margem extra à direita conforme solicitado */
 }
 
-/* ===== RODAPÉ ===== */
+/* ===== RODAPÉ CORRIGIDO ===== */
 .rodape {
   margin-bottom: 30px;
   text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
-.uf {
-  font-size: clamp(20px, 2vw, 24px);
-  font-weight: 700;
-}
-
-.segmento {
-  margin-top: 12px;
-  font-size: clamp(18px, 2vw, 20px);
-  font-weight: 400;
+.info {
+  font-size: clamp(18px, 2vw, 22px);
+  font-weight: 600;
+  line-height: 1.3;
 }
 </style>
 </head>
@@ -220,13 +183,12 @@ body {
 <body>
 <div class="card">
 
-  <!-- SELO DINÂMICO -->
   <div class="selo" id="selo-container">
-    <img id="selo-img" alt="Selo">
+    <img id="selo-img">
   </div>
 
   <div class="logo">
-    <img src="{{LOGO}}" alt="Logo">
+    <img src="{{LOGO}}">
   </div>
 
   <div class="condicao">{{TEXTO}}</div>
@@ -238,10 +200,8 @@ body {
 
   <div class="desconto">DE DESCONTO</div>
 
-  <div class="espaco-flexivel">
-    <div class="complemento">{{COMPLEMENTO}}</div>
-    <div class="legal">{{LEGAL}}</div>
-  </div>
+  <div class="complemento">{{COMPLEMENTO}}</div>
+  <div class="legal">{{LEGAL}}</div>
 
   <div class="cupom-box">
     <div class="cupom-label">
@@ -252,62 +212,35 @@ body {
     </div>
   </div>
 
+  <!-- ✅ RODAPÉ FINAL CORRIGIDO -->
   <div class="rodape">
-    <div class="rodape">
-  <div class="uf">
-    UF: {{UF}} - URN: {{URN}} - Negócio do Cliente: {{SEGMENTO}}
-  </div>
-</div>
+    <div class="info">UF: {{UF}}</div>
+    <div class="info">URN: {{URN}}</div>
+    <div class="info">Negócio do Cliente: {{SEGMENTO}}</div>
   </div>
 
 </div>
 
 <script>
 (function () {
-  try {
 
-    /* ===== AJUSTE AUTOMÁTICO CUPOM ===== */
-    const el = document.getElementById("cupom-text");
-    if (el) {
-      const container = el.parentElement;
-      const style = window.getComputedStyle(container);
-      const paddingLeft = parseFloat(style.paddingLeft);
-      const paddingRight = parseFloat(style.paddingRight);
-      const larguraDisponivel =
-        container.clientWidth - paddingLeft - paddingRight;
-
-      let fontSize = 110;
-      const minFontSize = 20;
-
-      el.style.whiteSpace = "nowrap";
+  // AJUSTE CUPOM
+  const el = document.getElementById("cupom-text");
+  if (el) {
+    let fontSize = 110;
+    while (el.scrollWidth > el.parentElement.clientWidth && fontSize > 20) {
+      fontSize--;
       el.style.fontSize = fontSize + "px";
-
-      while (el.scrollWidth > larguraDisponivel && fontSize > minFontSize) {
-        fontSize--;
-        el.style.fontSize = fontSize + "px";
-      }
     }
-
-    /* ===== SEGMENTO ===== */
-    const segmento = document.getElementById("segmento-bloco");
-    const valorSegmento = "{{SEGMENTO}}".trim();
-    if ((!valorSegmento || valorSegmento === "{{SEGMENTO}}") && segmento) {
-      segmento.style.display = "none";
-    }
-
-    /* ===== SELO ===== */
-    const seloContainer = document.getElementById("selo-container");
-    const seloImg = document.getElementById("selo-img");
-    const valorSelo = "{{SELO}}".trim();
-
-    if (valorSelo && valorSelo !== "{{SELO}}") {
-      seloImg.src = valorSelo;
-      seloContainer.style.display = "block";
-    }
-
-  } catch (e) {
-    console.log("Erro ajuste cupom:", e);
   }
+
+  // SELO
+  const selo = "{{SELO}}";
+  if (selo && selo !== "{{SELO}}") {
+    document.getElementById("selo-img").src = selo;
+    document.getElementById("selo-container").style.display = "block";
+  }
+
 })();
 </script>
 
