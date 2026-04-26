@@ -1,73 +1,82 @@
 function processarPlanilha() {
-  const fileInput = document.getElementById('upload');
-  const file = fileInput.files[0];
+  const file = document.getElementById('upload').files[0];
 
   if (!file) {
-    alert("Selecione uma planilha.");
+    alert("Selecione uma planilha");
     return;
   }
 
   const reader = new FileReader();
 
-  reader.onload = function(event) {
-    const data = new Uint8Array(event.target.result);
-
+  reader.onload = function(e) {
+    const data = new Uint8Array(e.target.result);
     const workbook = XLSX.read(data, { type: 'array' });
 
-    const primeiraAba = workbook.SheetNames[0];
-    const sheet = workbook.Sheets[primeiraAba];
-
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
     const json = XLSX.utils.sheet_to_json(sheet);
 
-    console.log("Dados lidos:", json);
-
-    mostrarCards(json);
+    gerarCards(json);
   };
 
   reader.readAsArrayBuffer(file);
 }
 
-async function mostrarCards(dados) {
-  const container = document.getElementById('cards');
+async function gerarCards(dados) {
+  const container = document.getElementById('jornal');
+  container.innerHTML = "Gerando...";
 
-  // limpar antes
-  container.innerHTML = "Carregando cards...";
+  let htmlFinal = "";
 
-  try {
-    // carregar template
-    const response = await fetch('templates/card.html');
-    const template = await response.text();
+  for (const item of dados) {
 
-    let htmlFinal = "";
+    const tipo = (item.TIPO || "").toUpperCase();
 
-    dados.forEach(item => {
-      let card = template;
+    const templateFile = mapearTemplate(tipo);
 
-      const nome = item.NOME || item.PRODUTO || "Produto";
-      const preco = item.PRECO || item.VALOR || 0;
-      const categoria = item.CATEGORIA || "";
+    if (!templateFile) continue;
 
-      card = card.replace('{{NOME}}', nome);
-      card = card.replace('{{PRECO}}', formatarPreco(preco));
-      card = card.replace('{{CATEGORIA}}', categoria);
+    const response = await fetch(`templates/${templateFile}`);
+    let template = await response.text();
 
-      htmlFinal += card;
-    });
+    template = substituirCampos(template, item);
 
-    container.innerHTML = htmlFinal;
-
-  } catch (erro) {
-    console.error("Erro ao carregar template:", erro);
-    container.innerHTML = "<p>Erro ao gerar os cards.</p>";
+    htmlFinal += criarIframe(template);
   }
+
+  container.innerHTML = htmlFinal;
 }
 
-function formatarPreco(valor) {
-  const numero = Number(valor);
+function mapearTemplate(tipo) {
+  const mapa = {
+    PROMO: "promocao.html",
+    PROMOCAO: "promocao.html",
+    CUPOM: "cupom.html",
+    BC: "bc.html",
+    QUEDA: "queda.html",
+    CASHBACK: "cashback.html"
+  };
 
-  if (isNaN(numero)) return "0,00";
+  return mapa[tipo] || null;
+}
 
-  return numero
-    .toFixed(2)
-    .replace('.', ',');
+function substituirCampos(template, item) {
+  return template
+    .replaceAll('{{LOGO}}', item.LOGO || '')
+    .replaceAll('{{TEXTO}}', item.TEXTO || '')
+    .replaceAll('{{VALOR}}', item.VALOR || '')
+    .replaceAll('{{COMPLEMENTO}}', item.COMPLEMENTO || '')
+    .replaceAll('{{LEGAL}}', item.LEGAL || '')
+    .replaceAll('{{UF}}', item.UF || '')
+    .replaceAll('{{URN}}', item.URN || '')
+    .replaceAll('{{SEGMENTO}}', item.SEGMENTO || '')
+    .replaceAll('{{SELO}}', item.SELO || '')
+    .replaceAll('{{CUPOM}}', item.CUPOM || '');
+}
+
+function criarIframe(html) {
+  const encoded = encodeURIComponent(html);
+
+  return `
+    <iframe src="data:text/html;charset=utf-8,${encoded}"></iframe>
+  `;
 }
