@@ -20,7 +20,7 @@ function gerarHTML() {
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
     const jsonData = XLSX.utils.sheet_to_json(sheet);
 
-    console.log("Dados da planilha:", jsonData); // Verificar se os dados foram lidos
+    console.log("Dados lidos da planilha:", jsonData); // Verificar se os dados foram lidos
 
     if (!jsonData || jsonData.length === 0) {
       alert("A planilha não contém dados válidos.");
@@ -113,7 +113,7 @@ function gerarJornal(data) {
     <div class="output-container">`;
 
   let currentCategory = '';
-  
+
   // Gerar os cards baseados nos dados
   data.forEach(item => {
     console.log("Processando item:", item); // Verificar cada item da planilha
