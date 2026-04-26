@@ -1,1 +1,38 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gerador de Jornal | Grid 3 Colunas</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    :root { --primary: #1F3C6E; --accent: #E0B84B; }
+    body { font-family: sans-serif; background: #f0f2f5; margin: 0; }
+    header { background: var(--primary); color: white; padding: 40px; text-align: center; border-bottom: 4px solid var(--accent); }
+    .ui-box { max-width: 800px; margin: -30px auto 30px; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); text-align: center; }
+    button { background: var(--accent); color: var(--primary); border: none; padding: 15px 30px; font-weight: bold; border-radius: 5px; cursor: pointer; font-size: 16px; }
+    .btn-export { background: #1a7d00; color: white; margin-bottom: 20px; width: 100%; max-width: 400px; }
+    #jornal-preview { background: white; padding: 20px; border-radius: 10px; margin: 20px; box-shadow: 0 0 10px rgba(0,0,0,0.05); }
+    input[type="file"] { margin-bottom: 15px; }
+  </style>
+</head>
+<body>
 
+  <header>
+    <h1>Gerador de Jornal em Grid</h1>
+    <p>Organização automática por categorias em 3 colunas</p>
+  </header>
+
+  <div class="ui-box">
+    <input type="file" id="upload" accept=".xlsx" />
+    <br>
+    <button onclick="processarPlanilha()">GERAR JORNAL EM GRID</button>
+  </div>
+
+  <div id="jornal"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+  <script src="script.js"></script>
+
+</body>
+</html>
