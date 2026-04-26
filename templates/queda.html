@@ -39,20 +39,21 @@ body {
   background: transparent;
 }
 
-/* 🔥 CONTAINER EXTERNO (BORDA) */
-.card-wrapper {
+/* 🔥 CORREÇÃO DEFINITIVA */
+.card {
   width: 700px;
   height: 1058px;
+
   border-radius: 40px;
   border: 10px solid #E0B84B;
-  overflow: hidden; /* 🔥 chave da correção */
-}
 
-/* 🔥 CONTEÚDO INTERNO (FUNDO) */
-.card {
-  width: 100%;
-  height: 100%;
   background: #ffffff;
+
+  /* ESSENCIAL */
+  overflow: hidden;
+
+  /* 🔥 ISSO É O QUE FALTAVA */
+  background-clip: padding-box;
 
   padding: 60px 40px 40px;
 
@@ -78,7 +79,6 @@ body {
   color: #ffffff;
   font-weight: 700;
   font-size: 42px;
-  text-align: center;
   padding: 18px 40px;
   border-radius: 999px;
   margin-bottom: 30px;
@@ -95,13 +95,11 @@ body {
 .texto-topo {
   font-size: 26px;
   text-align: center;
-  max-width: 560px;
 }
 
 .valor-texto {
   font-weight: 900;
   font-size: clamp(140px, 22vw, 260px);
-  white-space: nowrap;
 }
 
 .desconto {
@@ -112,13 +110,11 @@ body {
 .complemento {
   font-size: 24px;
   text-align: center;
-  max-width: 560px;
 }
 
 .legal {
   font-size: 18px;
   text-align: center;
-  max-width: 560px;
 }
 
 /* RODAPÉ */
@@ -128,7 +124,6 @@ body {
 
 .info {
   font-size: 18px;
-  line-height: 1.2;
 }
 
 </style>
@@ -136,51 +131,46 @@ body {
 
 <body>
 
-<!-- 🔥 WRAPPER NOVO -->
-<div class="card-wrapper">
+<div class="card">
 
-  <div class="card">
-
-    <div class="topo">
-      <div class="logo">
-        <img src="{{LOGO}}">
-      </div>
-
-      <div class="tarja">
-        QUEDA DE PREÇO
-      </div>
+  <div class="topo">
+    <div class="logo">
+      <img src="{{LOGO}}">
     </div>
 
-    <div class="area-central">
+    <div class="tarja">
+      QUEDA DE PREÇO
+    </div>
+  </div>
 
-      <div class="texto-topo">
-        {{TEXTO}}
-      </div>
+  <div class="area-central">
 
-      <div class="valor-texto">
-        {{VALOR}}%
-      </div>
-
-      <div class="desconto">
-        DE DESCONTO
-      </div>
-
-      <div class="complemento">
-        {{COMPLEMENTO}}
-      </div>
-
-      <div class="legal">
-        {{LEGAL}}
-      </div>
-
+    <div class="texto-topo">
+      {{TEXTO}}
     </div>
 
-    <div class="rodape">
-      <div class="info" id="uf">UF: {{UF}}</div>
-      <div class="info" id="urn">URN: {{URN}}</div>
-      <div class="info" id="seg">Negócio do Cliente: {{SEGMENTO}}</div>
+    <div class="valor-texto">
+      {{VALOR}}%
     </div>
 
+    <div class="desconto">
+      DE DESCONTO
+    </div>
+
+    <div class="complemento">
+      {{COMPLEMENTO}}
+    </div>
+
+    <div class="legal">
+      {{LEGAL}}
+    </div>
+
+  </div>
+
+  <div class="rodape">
+    <div class="info" id="uf">UF: {{UF}}</div>
+    <div class="info" id="urn">URN: {{URN}}</div>
+    <div class="info" id="seg">Negócio do Cliente: {{SEGMENTO}}</div>
   </div>
 
 </div>
