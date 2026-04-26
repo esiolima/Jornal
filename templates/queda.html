@@ -2,8 +2,26 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8" />
+<meta name="viewport" content="width=700, initial-scale=1.0" />
+<title>Queda de Preço</title>
 
 <style>
+
+@font-face {
+  font-family: 'Inter';
+  src: url('../fonts/Inter-Regular.ttf');
+}
+@font-face {
+  font-family: 'Inter';
+  src: url('../fonts/Inter-Bold.ttf');
+  font-weight: 700;
+}
+@font-face {
+  font-family: 'Inter';
+  src: url('../fonts/Inter-Black.ttf');
+  font-weight: 900;
+}
+
 * {
   box-sizing: border-box;
   text-transform: uppercase;
@@ -18,19 +36,20 @@ body {
   display: flex;
   justify-content: center;
   align-items: center;
+  background: transparent;
 }
 
+/* 🔥 PADRÃO FINAL DA BORDA */
 .card {
   width: 700px;
   height: 1058px;
 
-  /* PADRÃO NOVO */
   border-radius: 40px;
-  border: 10px solid #E0B84B; /* espessura padronizada */
+  border: 10px solid #E0B84B;
 
   background-color: #ffffff;
 
-  /* 🔥 ISSO CORRIGE O PROBLEMA DO FUNDO */
+  /* CORREÇÃO DO FUNDO */
   overflow: hidden;
 
   padding: 60px 40px 40px;
@@ -42,26 +61,76 @@ body {
   position: relative;
 }
 
+/* TOPO */
+.topo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.logo img {
+  max-width: 240px;
+  max-height: 120px;
+}
+
+.tarja {
+  background: #1a7d00;
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 42px;
+  text-align: center;
+  padding: 18px 40px;
+  border-radius: 999px;
+  margin-bottom: 30px;
+}
+
 /* CENTRO */
+.area-central {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 25px;
+}
+
 .texto-topo {
   font-size: 26px;
   text-align: center;
+  max-width: 560px;
 }
 
 .valor-texto {
-  font-size: 200px;
   font-weight: 900;
-  text-align: center;
+  font-size: clamp(140px, 22vw, 260px);
+  white-space: nowrap;
 }
 
-/* 🔥 RODAPÉ */
+.desconto {
+  font-size: 44px;
+  font-weight: 700;
+}
+
+.complemento {
+  font-size: 24px;
+  text-align: center;
+  max-width: 560px;
+}
+
+.legal {
+  font-size: 18px;
+  text-align: center;
+  max-width: 560px;
+}
+
+/* RODAPÉ */
 .rodape {
   text-align: center;
 }
 
 .info {
   font-size: 18px;
+  line-height: 1.2;
 }
+
 </style>
 </head>
 
@@ -69,22 +138,53 @@ body {
 
 <div class="card">
 
-<div class="texto-topo">{{TEXTO}}</div>
+  <!-- TOPO -->
+  <div class="topo">
+    <div class="logo">
+      <img src="{{LOGO}}">
+    </div>
 
-<div class="valor-texto">{{VALOR}}%</div>
+    <div class="tarja">
+      QUEDA DE PREÇO
+    </div>
+  </div>
 
-<div>{{COMPLEMENTO}}</div>
-<div>{{LEGAL}}</div>
+  <!-- CENTRO -->
+  <div class="area-central">
 
-<div class="rodape">
-  <div class="info" id="uf">UF: {{UF}}</div>
-  <div class="info" id="urn">URN: {{URN}}</div>
-  <div class="info" id="seg">Negócio do Cliente: {{SEGMENTO}}</div>
-</div>
+    <div class="texto-topo">
+      {{TEXTO}}
+    </div>
+
+    <div class="valor-texto">
+      {{VALOR}}%
+    </div>
+
+    <div class="desconto">
+      DE DESCONTO
+    </div>
+
+    <div class="complemento">
+      {{COMPLEMENTO}}
+    </div>
+
+    <div class="legal">
+      {{LEGAL}}
+    </div>
+
+  </div>
+
+  <!-- RODAPÉ -->
+  <div class="rodape">
+    <div class="info" id="uf">UF: {{UF}}</div>
+    <div class="info" id="urn">URN: {{URN}}</div>
+    <div class="info" id="seg">Negócio do Cliente: {{SEGMENTO}}</div>
+  </div>
 
 </div>
 
 <script>
+// esconder campos vazios
 function hide(id,val){
  if(!val || val.includes("{{")){
    const el = document.getElementById(id);
