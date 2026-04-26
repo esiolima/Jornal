@@ -2,15 +2,64 @@
 <html lang="pt-br">
 <head>
   <meta charset="UTF-8">
-  <title>Gerador de Ofertas</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gerador de Ofertas Profissional</title>
   <link rel="stylesheet" href="style.css">
+  <style>
+    header {
+      text-align: center;
+      padding: 40px 20px;
+      background: #1F3C6E;
+      color: white;
+      margin-bottom: 30px;
+    }
+    .upload-area {
+      background: white;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      max-width: 600px;
+      margin: -50px auto 30px;
+      text-align: center;
+    }
+    button {
+      background: #E0B84B;
+      color: #1F3C6E;
+      border: none;
+      padding: 12px 25px;
+      font-weight: bold;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+      transition: background 0.3s;
+    }
+    button:hover {
+      background: #c9a33d;
+    }
+    input[type="file"] {
+      margin-bottom: 20px;
+    }
+    #jornal {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 20px;
+      padding: 20px;
+    }
+  </style>
 </head>
 <body>
 
-  <h1>Gerador de Ofertas</h1>
+  <header>
+    <h1>Gerador de Jornal de Ofertas</h1>
+    <p>Integração automática com templates profissionais</p>
+  </header>
 
-  <input type="file" id="upload" accept=".xlsx" />
-  <button onclick="processarPlanilha()">Gerar Jornal</button>
+  <div class="upload-area">
+    <input type="file" id="upload" accept=".xlsx" />
+    <br>
+    <button onclick="processarPlanilha()">Gerar Cards das Ofertas</button>
+  </div>
 
   <div id="jornal"></div>
 

@@ -1,4 +1,4 @@
-function gerarHTML() {
+async function processarPlanilha() {
   const fileInput = document.getElementById('upload');
   const file = fileInput.files[0];
 
@@ -9,157 +9,131 @@ function gerarHTML() {
 
   const reader = new FileReader();
 
-  reader.onload = function (e) {
-    console.log("Arquivo carregado com sucesso.");
-
+  reader.onload = async function (e) {
     const data = new Uint8Array(e.target.result);
     const workbook = XLSX.read(data, { type: 'array' });
-
-    console.log("Planilha carregada:", workbook); // Verificar se a planilha foi carregada
-
-    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const sheet = workbook.Sheets[workbook.SheetNames[1]] || workbook.Sheets[workbook.SheetNames[0]];
     const jsonData = XLSX.utils.sheet_to_json(sheet);
-
-    console.log("Dados lidos da planilha:", jsonData); // Verificar se os dados foram lidos
 
     if (!jsonData || jsonData.length === 0) {
       alert("A planilha não contém dados válidos.");
       return;
     }
 
-    gerarJornal(jsonData);
+    await gerarJornalComTemplates(jsonData);
   };
 
   reader.readAsArrayBuffer(file);
 }
 
-function gerarJornal(data) {
-  let htmlContent = `
-  <!DOCTYPE html>
-  <html lang="pt-BR">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Jornal de Ofertas - 3 Colunas</title>
-    <style>
-      * {
-        box-sizing: border-box;
-        font-family: 'Arial', sans-serif;
-        margin: 0;
-        padding: 0;
-      }
+async function carregarTemplate(tipo) {
+  let nomeArquivo = 'promocao.html';
+  const t = tipo.toLowerCase();
+  
+  if (t.includes('cupom')) nomeArquivo = 'cupom.html';
+  else if (t.includes('queda')) nomeArquivo = 'queda.html';
+  else if (t.includes('cashback')) nomeArquivo = 'cashback.html';
+  else if (t.includes('bc')) nomeArquivo = 'bc.html';
+  else if (t.includes('card')) nomeArquivo = 'card.html';
 
-      .container {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); /* Responsivo */
-        gap: 20px; /* Espaçamento entre os cards */
-        padding: 20px;
-        max-width: 100%;
-        margin: 0 auto;
-      }
+  try {
+    const response = await fetch(`templates/${nomeArquivo}`);
+    if (!response.ok) throw new Error(`Template ${nomeArquivo} não encontrado`);
+    return await response.text();
+  } catch (error) {
+    console.error(error);
+    const fallback = await fetch('templates/promocao.html');
+    return await fallback.text();
+  }
+}
 
-      .card {
-        background-color: #ffffff;
-        border: 10px solid #e0b84b; /* Borda dourada */
-        border-radius: 15px;
-        padding: 20px;
-        text-align: center;
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        transition: transform 0.3s ease;
-      }
-
-      .card img {
-        width: 100%;
-        height: 200px;
-        object-fit: cover;
-        border-radius: 10px;
-      }
-
-      .card h3 {
-        font-size: 22px;
-        margin-top: 10px;
-        color: #333;
-      }
-
-      .card p {
-        font-size: 16px;
-        color: #666;
-        margin: 10px 0;
-      }
-
-      .card .price {
-        font-size: 20px;
-        color: #1a7d00;
-        font-weight: bold;
-      }
-
-      .card:hover {
-        transform: translateY(-10px);
-        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
-      }
-
-      .tarja {
-        background-color: #f1c40f;
-        color: #333;
-        font-size: 24px;
-        padding: 10px 20px;
-        text-align: center;
-        font-weight: bold;
-        margin-bottom: 20px;
-      }
-    </style>
-  </head>
-  <body>
-    <div class="output-container">`;
-
-  let currentCategory = '';
-
-  // Gerar os cards baseados nos dados
-  data.forEach(item => {
-    console.log("Processando item:", item); // Verificar cada item da planilha
-
-    // Separar por categoria
-    if (item.CATEGORIA !== currentCategory) {
-      // Se for uma nova categoria, adicionar a tarja
-      if (currentCategory !== '') {
-        htmlContent += `</div>`; // Fechar a seção de categoria anterior
-      }
-
-      currentCategory = item.CATEGORIA;
-      htmlContent += `
-        <div class="tarja">${currentCategory}</div>
-        <div class="container">`;
-    }
-
-    // Adicionar o card para cada item
-    htmlContent += `
-    <div class="card">
-      <img src="${item.IMAGEM}" alt="${item.NOME}">
-      <h3>${item.NOME}</h3>
-      <p>${item.DESCRICAO}</p>
-      <div class="price">${item.PRECO}</div>
-    </div>`;
-  });
-
-  htmlContent += `
-  </div></body></html>`;
-
-  console.log("HTML gerado:", htmlContent); // Verificar o HTML gerado
-
-  // Exibir o HTML gerado para visualização
-  document.getElementById('output').innerHTML = htmlContent;
-
-  // Criar botão de download
-  const downloadBtn = document.createElement('button');
-  downloadBtn.textContent = 'Baixar Jornal';
-  downloadBtn.onclick = () => {
-    const blob = new Blob([htmlContent], { type: 'text/html' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = 'jornal_ofertas.html';
-    link.click();
+function preencherTemplate(html, item) {
+  const mapeamento = {
+    'LOGO': item['logo'] || item['FORNECEDOR '] || '',
+    'TEXTO': item['texto'] || '',
+    'VALOR': item['valor'] || '',
+    'COMPLEMENTO': item['complemento'] || '',
+    'LEGAL': item['legal'] || '',
+    'UF': item['uf'] || '',
+    'URN': item['urn'] || '',
+    'SEGMENTO': item['segmento'] || ''
   };
 
-  // Adicionar o botão de download na página
-  document.body.appendChild(downloadBtn);
+  let templatePreenchido = html;
+  for (const [key, value] of Object.entries(mapeamento)) {
+    const regex = new RegExp(`{{${key}}}`, 'g');
+    // Se for LOGO e não for uma URL, podemos tentar formatar ou deixar para o usuário ajustar as imagens
+    let valorFinal = value;
+    if (key === 'LOGO' && value && !value.toString().startsWith('http')) {
+        // Tenta buscar na pasta assets se for apenas o nome
+        valorFinal = `assets/${value}.png`; 
+    }
+    templatePreenchido = templatePreenchido.replace(regex, valorFinal === 'nan' ? '' : valorFinal);
+  }
+  return templatePreenchido;
+}
+
+async function gerarJornalComTemplates(data) {
+  const container = document.getElementById('jornal');
+  container.innerHTML = '<p style="text-align:center">Gerando cards... aguarde.</p>';
+  
+  const fragment = document.createDocumentFragment();
+  
+  // Cache de templates para não baixar o mesmo arquivo várias vezes
+  const templateCache = {};
+
+  for (const item of data) {
+    const tipo = item['tipo'] || 'promocao';
+    
+    if (!templateCache[tipo]) {
+      templateCache[tipo] = await carregarTemplate(tipo);
+    }
+
+    const htmlCard = preencherTemplate(templateCache[tipo], item);
+    
+    const iframe = document.createElement('iframe');
+    iframe.style.width = '700px';
+    iframe.style.height = '1058px';
+    iframe.style.border = 'none';
+    iframe.style.margin = '10px';
+    iframe.style.boxShadow = '0 4px 10px rgba(0,0,0,0.2)';
+    
+    fragment.appendChild(iframe);
+    
+    // Injetar o conteúdo no iframe após ele ser adicionado ao DOM (ou via srcdoc)
+    iframe.srcdoc = htmlCard;
+  }
+
+  container.innerHTML = '';
+  container.appendChild(fragment);
+
+  // Adicionar botão de download do pack (opcional, aqui gera o HTML da galeria)
+  const downloadBtn = document.createElement('button');
+  downloadBtn.textContent = 'Baixar Pack de Ofertas (HTML)';
+  downloadBtn.style.display = 'block';
+  downloadBtn.style.margin = '20px auto';
+  downloadBtn.onclick = () => {
+    const fullHtml = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <title>Pack de Ofertas</title>
+        <style>
+          body { background: #eee; display: flex; flex-wrap: wrap; justify-content: center; padding: 20px; }
+          .card-container { margin: 10px; background: white; }
+        </style>
+      </head>
+      <body>
+        ${Array.from(container.querySelectorAll('iframe')).map(ifrm => `<div class="card-container">${ifrm.srcdoc}</div>`).join('\n')}
+      </body>
+      </html>
+    `;
+    const blob = new Blob([fullHtml], { type: 'text/html' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'pack_ofertas.html';
+    link.click();
+  };
+  container.prepend(downloadBtn);
 }
