@@ -21,39 +21,53 @@ function processarPlanilha() {
 
     console.log("Dados lidos:", json);
 
-    mostrarDados(json);
+    mostrarCards(json);
   };
 
   reader.readAsArrayBuffer(file);
 }
 
-function mostrarDados(dados) {
-  const container = document.getElementById('resultado');
+async function mostrarCards(dados) {
+  const container = document.getElementById('cards');
 
-  if (!dados.length) {
-    container.innerHTML = "<p>Nenhum dado encontrado.</p>";
-    return;
-  }
+  // limpar antes
+  container.innerHTML = "Carregando cards...";
 
-  let html = "<table border='1' cellpadding='8'>";
+  try {
+    // carregar template
+    const response = await fetch('templates/card.html');
+    const template = await response.text();
 
-  // Cabeçalho
-  html += "<tr>";
-  Object.keys(dados[0]).forEach(col => {
-    html += `<th>${col}</th>`;
-  });
-  html += "</tr>";
+    let htmlFinal = "";
 
-  // Linhas
-  dados.forEach(linha => {
-    html += "<tr>";
-    Object.values(linha).forEach(valor => {
-      html += `<td>${valor}</td>`;
+    dados.forEach(item => {
+      let card = template;
+
+      const nome = item.NOME || item.PRODUTO || "Produto";
+      const preco = item.PRECO || item.VALOR || 0;
+      const categoria = item.CATEGORIA || "";
+
+      card = card.replace('{{NOME}}', nome);
+      card = card.replace('{{PRECO}}', formatarPreco(preco));
+      card = card.replace('{{CATEGORIA}}', categoria);
+
+      htmlFinal += card;
     });
-    html += "</tr>";
-  });
 
-  html += "</table>";
+    container.innerHTML = htmlFinal;
 
-  container.innerHTML = html;
+  } catch (erro) {
+    console.error("Erro ao carregar template:", erro);
+    container.innerHTML = "<p>Erro ao gerar os cards.</p>";
+  }
+}
+
+function formatarPreco(valor) {
+  const numero = Number(valor);
+
+  if (isNaN(numero)) return "0,00";
+
+  return numero
+    .toFixed(2)
+    .replace('.', ',');
 }
