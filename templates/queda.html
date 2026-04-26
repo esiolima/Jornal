@@ -23,13 +23,23 @@ body {
 .card {
   width: 700px;
   height: 1058px;
-  border: 8px solid #e0b84b;
+
+  /* PADRÃO NOVO */
   border-radius: 40px;
-  background: #ffffff;
+  border: 10px solid #E0B84B; /* espessura padronizada */
+
+  background-color: #ffffff;
+
+  /* 🔥 ISSO CORRIGE O PROBLEMA DO FUNDO */
+  overflow: hidden;
+
   padding: 60px 40px 40px;
+
   display: flex;
   flex-direction: column;
   justify-content: space-between;
+
+  position: relative;
 }
 
 /* CENTRO */
