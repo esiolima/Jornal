@@ -1,170 +1,146 @@
-function processarPlanilha() {
-  const file = document.getElementById('upload').files[0];
+const fs = require('fs');
+const XLSX = require('xlsx');
 
-  if (!file) {
-    alert("Selecione uma planilha");
-    return;
-  }
-
+// Função para gerar o HTML com base na planilha
+function gerarHTML() {
+  const fileInput = document.getElementById('upload');
+  const file = fileInput.files[0];
   const reader = new FileReader();
 
-  reader.onload = function(e) {
+  reader.onload = function (e) {
     const data = new Uint8Array(e.target.result);
     const workbook = XLSX.read(data, { type: 'array' });
-
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    const json = XLSX.utils.sheet_to_json(sheet);
+    const jsonData = XLSX.utils.sheet_to_json(sheet);
+    
+    // Ordenando os dados pela coluna 'ORDEM'
+    jsonData.sort((a, b) => a.ORDEN - b.ORDEN);
 
-    const dadosNormalizados = normalizarDados(json);
+    let htmlContent = `
+    <!DOCTYPE html>
+    <html lang="pt-BR">
+    <head>
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <title>Jornal de Ofertas - 3 Colunas</title>
+      <style>
+        * {
+          box-sizing: border-box;
+          font-family: 'Arial', sans-serif;
+          margin: 0;
+          padding: 0;
+        }
 
-    console.log("DADOS NORMALIZADOS:", dadosNormalizados);
+        .container {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); /* Responsivo */
+          gap: 20px; /* Espaçamento entre os cards */
+          padding: 20px;
+          max-width: 100%;
+          margin: 0 auto;
+        }
 
-    gerarCards(dadosNormalizados);
+        .card {
+          background-color: #ffffff;
+          border: 10px solid #e0b84b; /* Borda dourada */
+          border-radius: 15px;
+          padding: 20px;
+          text-align: center;
+          box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+          transition: transform 0.3s ease;
+        }
+
+        .card img {
+          width: 100%;
+          height: 200px;
+          object-fit: cover;
+          border-radius: 10px;
+        }
+
+        .card h3 {
+          font-size: 22px;
+          margin-top: 10px;
+          color: #333;
+        }
+
+        .card p {
+          font-size: 16px;
+          color: #666;
+          margin: 10px 0;
+        }
+
+        .card .price {
+          font-size: 20px;
+          color: #1a7d00;
+          font-weight: bold;
+        }
+
+        .card:hover {
+          transform: translateY(-10px);
+          box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
+        }
+
+        .tarja {
+          background-color: #f1c40f;
+          color: #333;
+          font-size: 24px;
+          padding: 10px 20px;
+          text-align: center;
+          font-weight: bold;
+          margin-bottom: 20px;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="output-container">`;
+
+    let currentCategory = '';
+
+    // Gerando o HTML com base nos dados
+    jsonData.forEach(item => {
+      // Separar por categoria
+      if (item.CATEGORIA !== currentCategory) {
+        // Adicionar tarja de categoria antes de novos cards
+        if (currentCategory !== '') {
+          htmlContent += `</div>`; // Fechar a seção de categoria anterior
+        }
+
+        currentCategory = item.CATEGORIA;
+        htmlContent += `
+          <div class="tarja">${currentCategory}</div>
+          <div class="container">`;
+      }
+
+      // Adicionando os cards
+      htmlContent += `
+      <div class="card">
+        <img src="${item.IMAGEM}" alt="${item.NOME}">
+        <h3>${item.NOME}</h3>
+        <p>${item.DESCRICAO}</p>
+        <div class="price">${item.PRECO}</div>
+      </div>`;
+    });
+
+    htmlContent += `
+    </div></body></html>`;
+
+    // Exibir o HTML gerado para visualização
+    document.getElementById('output').innerHTML = htmlContent;
+
+    // Criar botão de download
+    const downloadBtn = document.createElement('button');
+    downloadBtn.textContent = 'Baixar Jornal';
+    downloadBtn.onclick = () => {
+      const blob = new Blob([htmlContent], { type: 'text/html' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = 'jornal_ofertas.html';
+      link.click();
+    };
+
+    // Adicionar o botão de download na página
+    document.body.appendChild(downloadBtn);
   };
 
   reader.readAsArrayBuffer(file);
-}
-
-/* ========================= */
-/* NORMALIZAÇÃO DE DADOS */
-/* ========================= */
-
-function normalizarDados(dados) {
-  return dados.map(item => {
-
-    const obj = {};
-
-    for (let chave in item) {
-
-      const chaveLimpa = chave
-        .toString()
-        .normalize("NFD") // remove acentos
-        .replace(/[\u0300-\u036f]/g, "")
-        .replace(/\s+/g, '') // remove espaços invisíveis
-        .toUpperCase();
-
-      obj[chaveLimpa] = item[chave];
-    }
-
-    console.log("Colunas detectadas:", Object.keys(obj));
-
-    return {
-      TIPO: limparTexto(obj.TIPO),
-      LOGO: obj.LOGO || "",
-      SELO: obj.SELO || "",
-      CUPOM: obj.CUPOM || "",
-      TEXTO: obj.TEXTO || "",
-      VALOR: obj.VALOR || "",
-      COMPLEMENTO: obj.COMPLEMENTO || "",
-      LEGAL: obj.LEGAL || "",
-      URN: obj.URN || "",
-      UF: obj.UF || "",
-      SEGMENTO: limparCampo(
-        obj.SEGMENTO || obj.SEGMENTO1 || obj.SEGMENTO_1 || ""
-      )
-    };
-  });
-}
-
-/* ========================= */
-/* LIMPEZA DE TEXTO */
-/* ========================= */
-
-function limparTexto(valor) {
-  if (!valor) return "";
-
-  return valor
-    .toString()
-    .trim()
-    .toUpperCase();
-}
-
-function limparCampo(valor) {
-  if (!valor) return "";
-
-  return valor
-    .toString()
-    .trim()
-    .replace(/\s+/g, ' ');
-}
-
-/* ========================= */
-/* GERAÇÃO DOS CARDS */
-/* ========================= */
-
-async function gerarCards(dados) {
-  const container = document.getElementById('jornal');
-  container.innerHTML = "Gerando...";
-
-  let htmlFinal = "";
-
-  for (const item of dados) {
-
-    if (!item.TIPO) continue;
-
-    const templateFile = mapearTemplate(item.TIPO);
-
-    if (!templateFile) continue;
-
-    try {
-      const response = await fetch(`templates/${templateFile}`);
-      let template = await response.text();
-
-      template = substituirCampos(template, item);
-
-      htmlFinal += criarIframe(template);
-
-    } catch (erro) {
-      console.error("Erro ao carregar template:", erro);
-    }
-  }
-
-  container.innerHTML = htmlFinal;
-}
-
-/* ========================= */
-/* MAPEAMENTO DE TEMPLATE */
-/* ========================= */
-
-function mapearTemplate(tipo) {
-  const mapa = {
-    PROMO: "promocao.html",
-    PROMOCAO: "promocao.html",
-    CUPOM: "cupom.html",
-    BC: "bc.html",
-    QUEDA: "queda.html",
-    CASHBACK: "cashback.html"
-  };
-
-  return mapa[tipo] || null;
-}
-
-/* ========================= */
-/* SUBSTITUIÇÃO DE CAMPOS */
-/* ========================= */
-
-function substituirCampos(template, item) {
-  return template
-    .replaceAll('{{LOGO}}', item.LOGO)
-    .replaceAll('{{TEXTO}}', item.TEXTO)
-    .replaceAll('{{VALOR}}', item.VALOR)
-    .replaceAll('{{COMPLEMENTO}}', item.COMPLEMENTO)
-    .replaceAll('{{LEGAL}}', item.LEGAL)
-    .replaceAll('{{UF}}', item.UF)
-    .replaceAll('{{URN}}', item.URN)
-    .replaceAll('{{SEGMENTO}}', item.SEGMENTO)
-    .replaceAll('{{SELO}}', item.SELO)
-    .replaceAll('{{CUPOM}}', item.CUPOM);
-}
-
-/* ========================= */
-/* IFRAME */
-/* ========================= */
-
-function criarIframe(html) {
-  const encoded = encodeURIComponent(html);
-
-  return `
-    <iframe src="data:text/html;charset=utf-8,${encoded}"></iframe>
-  `;
 }
