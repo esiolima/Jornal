@@ -17,7 +17,7 @@ function processarPlanilha() {
 
     const dadosNormalizados = normalizarDados(json);
 
-    console.log("Normalizado:", dadosNormalizados);
+    console.log("DADOS NORMALIZADOS:", dadosNormalizados);
 
     gerarCards(dadosNormalizados);
   };
@@ -25,19 +25,28 @@ function processarPlanilha() {
   reader.readAsArrayBuffer(file);
 }
 
+/* ========================= */
+/* NORMALIZAÇÃO DE DADOS */
+/* ========================= */
+
 function normalizarDados(dados) {
   return dados.map(item => {
 
     const obj = {};
 
     for (let chave in item) {
+
       const chaveLimpa = chave
         .toString()
-        .trim()
+        .normalize("NFD") // remove acentos
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/\s+/g, '') // remove espaços invisíveis
         .toUpperCase();
 
       obj[chaveLimpa] = item[chave];
     }
+
+    console.log("Colunas detectadas:", Object.keys(obj));
 
     return {
       TIPO: limparTexto(obj.TIPO),
@@ -50,15 +59,38 @@ function normalizarDados(dados) {
       LEGAL: obj.LEGAL || "",
       URN: obj.URN || "",
       UF: obj.UF || "",
-      SEGMENTO: obj.SEGMENTO || ""
+      SEGMENTO: limparCampo(
+        obj.SEGMENTO || obj.SEGMENTO1 || obj.SEGMENTO_1 || ""
+      )
     };
   });
 }
 
+/* ========================= */
+/* LIMPEZA DE TEXTO */
+/* ========================= */
+
 function limparTexto(valor) {
   if (!valor) return "";
-  return valor.toString().trim().toUpperCase();
+
+  return valor
+    .toString()
+    .trim()
+    .toUpperCase();
 }
+
+function limparCampo(valor) {
+  if (!valor) return "";
+
+  return valor
+    .toString()
+    .trim()
+    .replace(/\s+/g, ' ');
+}
+
+/* ========================= */
+/* GERAÇÃO DOS CARDS */
+/* ========================= */
 
 async function gerarCards(dados) {
   const container = document.getElementById('jornal');
@@ -74,16 +106,25 @@ async function gerarCards(dados) {
 
     if (!templateFile) continue;
 
-    const response = await fetch(`templates/${templateFile}`);
-    let template = await response.text();
+    try {
+      const response = await fetch(`templates/${templateFile}`);
+      let template = await response.text();
 
-    template = substituirCampos(template, item);
+      template = substituirCampos(template, item);
 
-    htmlFinal += criarIframe(template);
+      htmlFinal += criarIframe(template);
+
+    } catch (erro) {
+      console.error("Erro ao carregar template:", erro);
+    }
   }
 
   container.innerHTML = htmlFinal;
 }
+
+/* ========================= */
+/* MAPEAMENTO DE TEMPLATE */
+/* ========================= */
 
 function mapearTemplate(tipo) {
   const mapa = {
@@ -98,6 +139,10 @@ function mapearTemplate(tipo) {
   return mapa[tipo] || null;
 }
 
+/* ========================= */
+/* SUBSTITUIÇÃO DE CAMPOS */
+/* ========================= */
+
 function substituirCampos(template, item) {
   return template
     .replaceAll('{{LOGO}}', item.LOGO)
@@ -111,6 +156,10 @@ function substituirCampos(template, item) {
     .replaceAll('{{SELO}}', item.SELO)
     .replaceAll('{{CUPOM}}', item.CUPOM);
 }
+
+/* ========================= */
+/* IFRAME */
+/* ========================= */
 
 function criarIframe(html) {
   const encoded = encodeURIComponent(html);
