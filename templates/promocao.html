@@ -1,9 +1,174 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=700, initial-scale=1.0" />
+<title>Promoção</title>
+
+<style>
+
+@font-face {
+  font-family: 'Inter';
+  src: url('../fonts/Inter-Regular.ttf') format('truetype');
+  font-weight: 400;
+}
+@font-face {
+  font-family: 'Inter';
+  src: url('../fonts/Inter-Bold.ttf') format('truetype');
+  font-weight: 700;
+}
+@font-face {
+  font-family: 'Inter';
+  src: url('../fonts/Inter-Black.ttf') format('truetype');
+  font-weight: 900;
+}
+
+* {
+  box-sizing: border-box;
+  text-transform: uppercase;
+  font-family: 'Inter', sans-serif;
+  color: #1F3C6E;
+}
+
+body {
+  margin: 0;
+  width: 700px;
+  height: 1058px;
+  background: transparent;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.card {
+  width: 700px;
+  height: 1058px;
+  border: 8px solid #e0b84b;
+  border-radius: 40px;
+  background: #ffffff;
+  padding: 60px 40px 40px 40px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  overflow: visible;
+  position: relative;
+}
+
+/* ===== SELO ===== */
+.selo {
+  position: absolute;
+  top: -8px;
+  left: -8px;
+  width: 130px;
+  height: 65px;
+  display: none;
+  z-index: 999;
+}
+
+.selo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* ===== TOPO ===== */
+.topo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.logo {
+  margin-bottom: 20px;
+}
+.logo img {
+  max-width: 240px;
+  max-height: 120px;
+}
+
+.tarja {
+  background: #ff8c00;
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 42px;
+  text-align: center;
+  padding: 18px 40px;
+  border-radius: 999px;
+  margin-bottom: 30px;
+}
+
+/* ===== CENTRO ===== */
+.area-central {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  flex-grow: 1;
+  justify-content: center;
+}
+
+.texto-topo {
+  font-size: 26px;
+  text-align: center;
+  max-width: 560px;
+}
+
+.valor-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 600px;
+  height: 300px;
+  overflow: hidden;
+}
+
+.valor-texto {
+  font-weight: 900;
+  font-size: 260px;
+  line-height: 0.9;
+  text-align: center;
+  width: 100%;
+}
+
+.complemento {
+  font-size: 24px;
+  text-align: center;
+  max-width: 560px;
+}
+
+.legal {
+  font-size: 18px;
+  text-align: center;
+  max-width: 560px;
+}
+
+/* ===== RODAPÉ CORRIGIDO ===== */
+.rodape {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.info {
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+</style>
+</head>
+
+<body>
+
 <div class="card">
 
-  <div class="selo" data-selo="{{SELO}}">
-    <img />
+  <!-- SELO -->
+  <div class="selo" id="selo-container">
+    <img id="selo-img" />
   </div>
 
+  <!-- TOPO -->
   <div class="topo">
     <div class="logo">
       <img src="{{LOGO}}" />
@@ -14,6 +179,7 @@
     </div>
   </div>
 
+  <!-- CENTRO -->
   <div class="area-central">
 
     <div class="texto-topo">
@@ -36,12 +202,48 @@
 
   </div>
 
+  <!-- RODAPÉ NOVO -->
   <div class="rodape">
-    <div class="rodape">
-  <div class="info">UF: {{UF}}</div>
-  <div class="info">URN: {{URN}}</div>
-  <div class="info">Negócio do Cliente: {{SEGMENTO}}</div>
-</div>
+    <div class="info">UF: {{UF}}</div>
+    <div class="info">URN: {{URN}}</div>
+    <div class="info">Negócio do Cliente: {{SEGMENTO}}</div>
   </div>
 
 </div>
+
+<script>
+window.addEventListener("load", function () {
+
+  function autoFit(el, max = 260, min = 80) {
+    let size = max;
+    el.style.fontSize = size + "px";
+
+    const containerHeight = el.parentElement.clientHeight;
+    const containerWidth = el.parentElement.clientWidth;
+
+    if (!el.innerText.trim()) return;
+
+    while (
+      (el.scrollHeight > containerHeight || el.scrollWidth > containerWidth) &&
+      size > min
+    ) {
+      size -= 2;
+      el.style.fontSize = size + "px";
+    }
+  }
+
+  const valorEl = document.querySelector(".valor-texto");
+  if (valorEl) autoFit(valorEl);
+
+  // SELO
+  const selo = "{{SELO}}";
+  if (selo && selo !== "{{SELO}}") {
+    document.getElementById("selo-img").src = selo;
+    document.getElementById("selo-container").style.display = "block";
+  }
+
+});
+</script>
+
+</body>
+</html>
