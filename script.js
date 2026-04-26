@@ -10,24 +10,23 @@ function gerarHTML() {
   const reader = new FileReader();
 
   reader.onload = function (e) {
+    console.log("Arquivo carregado com sucesso.");
+
     const data = new Uint8Array(e.target.result);
     const workbook = XLSX.read(data, { type: 'array' });
 
-    // Verificando se a planilha foi lida corretamente
-    console.log("Planilha carregada:", workbook);
+    console.log("Planilha carregada:", workbook); // Verificar se a planilha foi carregada
 
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
     const jsonData = XLSX.utils.sheet_to_json(sheet);
 
-    // Verificando o conteúdo dos dados lidos
-    console.log("Dados lidos da planilha:", jsonData);
+    console.log("Dados da planilha:", jsonData); // Verificar se os dados foram lidos
 
     if (!jsonData || jsonData.length === 0) {
       alert("A planilha não contém dados válidos.");
       return;
     }
 
-    // Agora vamos gerar o HTML com base nos dados
     gerarJornal(jsonData);
   };
 
@@ -117,6 +116,8 @@ function gerarJornal(data) {
   
   // Gerar os cards baseados nos dados
   data.forEach(item => {
+    console.log("Processando item:", item); // Verificar cada item da planilha
+
     // Separar por categoria
     if (item.CATEGORIA !== currentCategory) {
       // Se for uma nova categoria, adicionar a tarja
@@ -142,6 +143,8 @@ function gerarJornal(data) {
 
   htmlContent += `
   </div></body></html>`;
+
+  console.log("HTML gerado:", htmlContent); // Verificar o HTML gerado
 
   // Exibir o HTML gerado para visualização
   document.getElementById('output').innerHTML = htmlContent;
