@@ -210,7 +210,7 @@ export default function CardGenerator() {
         </div>
 
         <footer className="mt-20 py-8 border-t border-white/5 text-center text-white/20 text-xs">
-          Desenvolvido por Esio Lima &mdash; Versão 2.3.1
+          Desenvolvido por Esio Lima &mdash; Versão 2.3.2
         </footer>
       </div>
     </div>
