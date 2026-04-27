@@ -2,17 +2,26 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8" />
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
 <meta name="viewport" content="width=700, initial-scale=1.0" />
 <title>BC</title>
 
 <style>
 
-
-
-
+@font-face {
+  font-family: 'Inter';
+  src: url('../fonts/Inter-Regular.ttf') format('truetype');
+  font-weight: 400;
+}
+@font-face {
+  font-family: 'Inter';
+  src: url('../fonts/Inter-Bold.ttf') format('truetype');
+  font-weight: 700;
+}
+@font-face {
+  font-family: 'Inter';
+  src: url('../fonts/Inter-Black.ttf') format('truetype');
+  font-weight: 900;
+}
 
 * {
   box-sizing: border-box;
@@ -210,7 +219,7 @@ body {
     <div class="uf">{{UF}}</div>
 
     <div class="segmento-wrapper" id="segmento-bloco">
-      SEGMENTO DE CLIENTES: {{SEGMENTO}}
+      NEGÓCIO DE CLIENTES: {{SEGMENTO}}
     </div>
   </div>
 
@@ -223,7 +232,7 @@ window.addEventListener("load", function () {
   const segmento = document.getElementById("segmento-bloco");
   const valorSegmento = "{{SEGMENTO}}".trim();
 
-  if ((!valorSegmento || valorSegmento === "{{SEGMENTO}}") && segmento) {
+  if (!valorSegmento && segmento) {
     segmento.style.display = "none";
   }
 
@@ -232,7 +241,7 @@ window.addEventListener("load", function () {
   const seloImg = document.getElementById("selo-img");
   const valorSelo = "{{SELO}}".trim();
 
-  if (valorSelo && valorSelo !== "{{SELO}}") {
+  if (valorSelo) {
     seloImg.src = valorSelo;
     seloContainer.style.display = "block";
   }
