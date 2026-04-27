@@ -181,7 +181,7 @@ export default function CardGenerator() {
         </div>
 
         <footer className="mt-32 py-8 border-t border-white/5 text-center text-white/20 text-xs">
-          Desenvolvido por Esio Lima — Versão 2.3.3
+          Desenvolvido por Esio Lima — V2.3.3
         </footer>
       </div>
     </div>
