@@ -1,272 +1,200 @@
-import { useState, useRef, useEffect } from "react";
-import { io, Socket } from "socket.io-client";
-import { trpc } from "@/lib/trpc"; // Ajuste conforme sua estrutura de tRPC
-import { Button } from "@/components/ui/button";
-import { 
-  Upload, 
-  CheckCircle2, 
-  Download, 
-  Hourglass, 
-  Image as ImageIcon, 
-  AlertCircle, 
-  X,
-  FileText
-} from "lucide-react";
+import path from "path";
+import fs from "fs";
+import puppeteer, { Browser } from "puppeteer-core";
+import archiver from "archiver";
+import xlsx from "xlsx";
+import { EventEmitter } from "events";
 
-interface ProgressData {
-  total: number;
-  processed: number;
-  percentage: number;
-  currentCard: string;
-}
+const BASE_DIR = path.resolve();
+const OUTPUT_DIR = path.join(BASE_DIR, "output");
+const TMP_DIR = path.join(BASE_DIR, "tmp");
+const TEMPLATES_DIR = path.join(BASE_DIR, "templates");
+const LOGOS_DIR = path.join(BASE_DIR, "logos");
+const SELOS_DIR = path.join(BASE_DIR, "selos");
 
-export default function CardGenerator() {
-  const [file, setFile] = useState<File | null>(null);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [progress, setProgress] = useState<ProgressData | null>(null);
-  const [zipPath, setZipPath] = useState<string | null>(null);
-  const [jornalPath, setJornalPath] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [isDragging, setIsDragging] = useState(false);
-  const [sessionId] = useState(() => `session_${Math.random().toString(36).substr(2, 9)}`);
-  
-  const socketRef = useRef<Socket | null>(null);
-  const generateCardsMutation = trpc.card.generateCards.useMutation();
+export class CardGenerator extends EventEmitter {
+  private browser: Browser | null = null;
 
-  // Configuração do WebSocket para progresso em tempo real
-  useEffect(() => {
-    const socket = io({ 
-      reconnection: true, 
-      reconnectionAttempts: 5 
+  async initialize() {
+    if (!fs.existsSync(OUTPUT_DIR)) fs.mkdirSync(OUTPUT_DIR, { recursive: true });
+    if (!fs.existsSync(TMP_DIR)) fs.mkdirSync(TMP_DIR, { recursive: true });
+
+    this.browser = await puppeteer.launch({
+      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || "/usr/bin/chromium",
+      args: ["--no-sandbox", "--disable-setuid-sandbox"],
+      headless: true,
     });
+  }
 
-    socket.on("connect", () => {
-      socket.emit("join", sessionId);
-    });
+  // Mudamos para Arrow Function para evitar o erro de "this.normalizeType is not a function"
+  private normalizeType = (tipo: string): string => {
+    if (!tipo) return "";
+    const normalized = String(tipo)
+      .toLowerCase()
+      .trim()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
 
-    socket.on("progress", (data: ProgressData) => {
-      setProgress(data);
-    });
-
-    socket.on("error", (message: string) => {
-      setError(message);
-      setIsProcessing(false);
-    });
-
-    socketRef.current = socket;
-    return () => { socket.disconnect(); };
-  }, [sessionId]);
-
-  const handleFileSelect = (selectedFile: File | null | undefined) => {
-    if (!selectedFile) return;
-    if (!selectedFile.name.endsWith(".xlsx")) {
-      setError("Por favor, selecione apenas arquivos Excel (.xlsx)");
-      return;
-    }
-    setFile(selectedFile);
-    setError(null);
-    setZipPath(null);
-    setJornalPath(null);
+    if (normalized.includes("promo")) return "promocao";
+    if (normalized.includes("cupom")) return "cupom";
+    if (normalized.includes("queda")) return "queda";
+    if (normalized.includes("cashback")) return "cashback";
+    if (normalized === "bc") return "bc";
+    return "";
   };
 
-  const handleUpload = async () => {
-    if (!file) return;
-    setIsProcessing(true);
-    setError(null);
-    setProgress({ total: 0, processed: 0, percentage: 0, currentCard: "Iniciando..." });
+  private sanitizeFileName = (value: string): string => {
+    return value
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^\w\s-]/g, "")
+      .replace(/\s+/g, "-")
+      .toLowerCase()
+      .trim();
+  };
 
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
+  private imageToBase64 = (imagePath: string): string => {
+    if (!imagePath || !fs.existsSync(imagePath) || fs.lstatSync(imagePath).isDirectory()) return "";
+    const ext = path.extname(imagePath).replace(".", "").toLowerCase();
+    const buffer = fs.readFileSync(imagePath);
+    let mimeType = `image/${ext}`;
+    if (ext === "svg") mimeType = "image/svg+xml";
+    if (ext === "jpg") mimeType = "image/jpeg";
+    return `data:${mimeType};base64,${buffer.toString("base64")}`;
+  };
 
-      // 1. Upload do arquivo para o servidor
-      const uploadResponse = await fetch("/api/upload", { 
-        method: "POST", 
-        body: formData 
-      });
-      
-      if (!uploadResponse.ok) throw new Error("Falha no upload do arquivo.");
+  private findLogoFile = (logoName: string): string => {
+    if (!logoName || String(logoName).trim() === "") return "blank.png";
+    const cleanName = String(logoName).trim();
+    const extensions = [".png", ".jpg", ".jpeg", ".webp", ".svg"];
+    const filesInLogos = fs.readdirSync(LOGOS_DIR);
+    
+    for (const ext of extensions) {
+      const target = cleanName.toLowerCase().endsWith(ext) ? cleanName.toLowerCase() : cleanName.toLowerCase() + ext;
+      const found = filesInLogos.find(f => f.toLowerCase() === target);
+      if (found) return found;
+    }
+    return "blank.png";
+  };
 
-      const { filePath, fileName } = await uploadResponse.json();
+  async generateCards(excelFilePath: string, originalFileName?: string): Promise<{ zipPath: string, jornalPath: string }> {
+    if (!this.browser) throw new Error("Browser não iniciado");
 
-      // 2. Chamada da Mutação para processar os cards e o jornal
-      const result = await generateCardsMutation.mutateAsync({ 
-        filePath, 
-        sessionId, 
-        originalFileName: fileName 
-      });
-      
-      if (result.success) {
-        setZipPath(result.zipPath);
-        setJornalPath(result.jornalPath);
+    const workbook = xlsx.readFile(excelFilePath);
+    const rows: any[] = xlsx.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { defval: "" });
+    const total = rows.length;
+    
+    // Limpeza
+    fs.readdirSync(OUTPUT_DIR).forEach(f => (f.endsWith(".pdf") || f.endsWith(".zip")) && fs.unlinkSync(path.join(OUTPUT_DIR, f)));
+
+    let processedContent: any[] = [];
+
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      try {
+        const tipo = this.normalizeType(row.tipo);
+        if (!tipo) continue;
+
+        const templatePath = path.join(TEMPLATES_DIR, `${tipo}.html`);
+        let html = fs.readFileSync(templatePath, "utf8");
+
+        const logoBase64 = this.imageToBase64(path.join(LOGOS_DIR, this.findLogoFile(row.logo)));
+        const seloRaw = String(row.selo ?? "").trim().toLowerCase();
+        const seloFile = seloRaw === "nova" ? "acaonova.png" : "acaorenovada.png";
+        const seloBase64 = seloRaw ? this.imageToBase64(path.join(SELOS_DIR, seloFile)) : "";
+
+        html = html
+          .replaceAll("{{TEXTO}}", String(row.texto ?? ""))
+          .replaceAll("{{VALOR}}", String(row.valor ?? ""))
+          .replaceAll("{{LOGO}}", logoBase64)
+          .replaceAll("{{SELO}}", seloBase64)
+          .replaceAll("{{SEGMENTO}}", String(row.segmento ?? ""))
+          .replaceAll("{{LEGAL}}", String(row.legal ?? ""))
+          .replaceAll("{{UF}}", String(row.uf ?? ""))
+          .replaceAll("{{URN}}", String(row.urn ?? ""));
+
+        const tmpHtmlPath = path.join(TMP_DIR, `card_${Date.now()}_${i}.html`);
+        fs.writeFileSync(tmpHtmlPath, html);
+
+        const page = await this.browser.newPage();
+        await page.setViewport({ width: 700, height: 1058 });
+        await page.goto(`file://${tmpHtmlPath}`, { waitUntil: "networkidle0" });
+        
+        const pdfName = `${row.ordem || i + 1}_${tipo}_${this.sanitizeFileName(row.categoria || "geral")}.pdf`;
+        const pdfPath = path.join(OUTPUT_DIR, pdfName);
+        await page.pdf({ path: pdfPath, width: "700px", height: "1058px", printBackground: true });
+        await page.close();
+
+        processedContent.push({
+          categoria: String(row.categoria || "GERAL").toUpperCase(),
+          html: tmpHtmlPath,
+          ordem: Number(row.ordem || i + 1)
+        });
+
+        this.emit("progress", { processed: i + 1, total, percentage: Math.round(((i + 1) / total) * 100), currentCard: row.texto });
+      } catch (err: any) {
+        this.emit("error", `Erro na linha ${i + 1}: ${err.message}`);
       }
-    } catch (err: any) {
-      setError(err.message || "Erro inesperado ao processar a planilha.");
-    } finally {
-      setIsProcessing(false);
     }
-  };
 
-  const resetProcess = () => {
-    setFile(null);
-    setZipPath(null);
-    setJornalPath(null);
-    setProgress(null);
-    setError(null);
-  };
+    const jornalPath = await this.buildJornal(processedContent);
 
-  return (
-    <div className="relative min-h-screen bg-[#08080f] text-white font-sans overflow-x-hidden">
-      {/* Background Decorativo */}
-      <div className="absolute inset-0 pointer-events-none opacity-30">
-        <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-orange-600/20 blur-[120px] rounded-full" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-blue-600/20 blur-[120px] rounded-full" />
-      </div>
+    // ZIP
+    const zipPath = path.join(OUTPUT_DIR, `Cards_${Date.now()}.zip`);
+    const output = fs.createWriteStream(zipPath);
+    const archive = archiver("zip", { zlib: { level: 9 } });
+    archive.pipe(output);
+    fs.readdirSync(OUTPUT_DIR).forEach(f => {
+        if (f.endsWith(".pdf") && f !== path.basename(jornalPath)) {
+            archive.file(path.join(OUTPUT_DIR, f), { name: f });
+        }
+    });
+    await archive.finalize();
 
-      {/* Popup de Erro Detalhado */}
-      {error && (
-        <div className="fixed top-10 left-1/2 -translate-x-1/2 z-[100] w-full max-w-lg px-4 animate-in fade-in slide-in-from-top-5">
-          <div className="bg-red-950/80 border border-red-500/50 backdrop-blur-xl p-5 rounded-2xl flex items-start gap-4 shadow-2xl">
-            <AlertCircle className="w-6 h-6 text-red-500 shrink-0 mt-1" />
-            <div className="flex-1">
-              <h3 className="font-bold text-red-200 uppercase tracking-wider text-sm">Erro Detectado</h3>
-              <p className="text-red-300/90 text-sm mt-1 leading-relaxed">{error}</p>
-            </div>
-            <button onClick={() => setError(null)} className="hover:rotate-90 transition-transform p-1">
-              <X className="w-5 h-5 text-red-400" />
-            </button>
+    return { zipPath, jornalPath };
+  }
+
+  private async buildJornal(content: any[]): Promise<string> {
+    const jornalTemplatePath = path.join(TEMPLATES_DIR, "jornal.html");
+    const jornalTemplate = fs.readFileSync(jornalTemplatePath, "utf8");
+    
+    const grupos = content.reduce((acc, curr) => {
+      acc[curr.categoria] = acc[curr.categoria] || [];
+      acc[curr.categoria].push(curr);
+      return acc;
+    }, {});
+
+    let htmlFinal = "";
+    for (const [cat, cards] of Object.entries(grupos)) {
+      (cards as any[]).sort((a, b) => a.ordem - b.ordem);
+      htmlFinal += `
+        <div class="categoria-secao">
+          <div class="tarja-categoria">${cat}</div>
+          <div class="cards-grid">
+            ${(cards as any[]).map(c => `<div class="card-mini-wrapper"><iframe src="file://${c.html}"></iframe></div>`).join("")}
           </div>
-        </div>
-      )}
+        </div>`;
+    }
 
-      <div className="relative z-10 max-w-4xl mx-auto px-6 pt-20 pb-20">
-        <header className="text-center space-y-4 mb-16">
-          <h1 className="text-6xl font-black tracking-tighter leading-none">
-            GERADOR DE <span className="text-orange-500">CARDS</span>
-          </h1>
-          <p className="text-white/40 text-lg max-w-xl mx-auto">
-            Transforme planilhas em cards profissionais e jornais diagramados automaticamente.
-          </p>
-        </header>
+    const page = await this.browser!.newPage();
+    await page.setContent(jornalTemplate.replace("{{CONTEUDO}}", htmlFinal));
+    
+    const bodyHeight = await page.evaluate(() => document.body.scrollHeight);
+    const jornalFile = path.join(OUTPUT_DIR, `Jornal_Diagramado_${Date.now()}.pdf`);
+    
+    await page.pdf({
+      path: jornalFile,
+      width: "1200px",
+      height: `${bodyHeight + 100}px`,
+      printBackground: true,
+      margin: { top: "0px", bottom: "0px", left: "0px", right: "0px" }
+    });
 
-        <main className="max-w-2xl mx-auto">
-          {/* ESTADO INICIAL: Seleção de Arquivo */}
-          {!isProcessing && !zipPath && (
-            <div className="space-y-8 animate-in fade-in duration-500">
-              <div 
-                onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-                onDragLeave={() => setIsDragging(false)}
-                onDrop={(e) => { e.preventDefault(); setIsDragging(false); handleFileSelect(e.dataTransfer.files[0]); }}
-                onClick={() => document.getElementById("file-input")?.click()}
-                className={`
-                  group relative border-2 border-dashed rounded-3xl p-16 transition-all duration-300 cursor-pointer
-                  ${isDragging ? 'border-orange-500 bg-orange-500/10' : 'border-white/10 bg-white/5 hover:border-orange-500/40'}
-                `}
-              >
-                <input id="file-input" type="file" accept=".xlsx" onChange={(e) => handleFileSelect(e.target.files?.[0])} className="hidden" />
-                <div className="flex flex-col items-center gap-6">
-                  <div className="w-20 h-20 rounded-full bg-orange-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
-                    <Upload className="w-10 h-10 text-orange-500" />
-                  </div>
-                  <div className="text-center">
-                    <p className="text-xl font-bold">Arraste sua planilha Excel</p>
-                    <p className="text-white/30 text-sm mt-2">Suporta apenas arquivos .xlsx</p>
-                  </div>
-                </div>
-              </div>
+    await page.close();
+    return jornalFile;
+  }
 
-              {file && (
-                <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex items-center justify-between animate-in slide-in-from-bottom-2">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-green-500/20 rounded-lg"><CheckCircle2 className="w-5 h-5 text-green-500" /></div>
-                    <span className="font-medium truncate max-w-[250px]">{file.name}</span>
-                  </div>
-                  <Button variant="ghost" onClick={() => setFile(null)} className="hover:bg-red-500/10 hover:text-red-500">Remover</Button>
-                </div>
-              )}
-
-              <Button 
-                onClick={handleUpload} 
-                disabled={!file}
-                className="w-full bg-orange-600 hover:bg-orange-700 h-16 rounded-2xl text-xl font-black shadow-xl shadow-orange-950/20 disabled:opacity-30 transition-all"
-              >
-                INICIAR PROCESSAMENTO
-              </Button>
-            </div>
-          )}
-
-          {/* ESTADO: Processando */}
-          {isProcessing && progress && (
-            <div className="bg-white/5 border border-white/10 rounded-3xl p-12 text-center space-y-8 animate-in zoom-in-95">
-              <div className="relative w-24 h-24 mx-auto">
-                <Hourglass className="w-full h-full text-orange-500 animate-spin-slow" />
-              </div>
-              <div className="space-y-2">
-                <h2 className="text-2xl font-bold uppercase tracking-widest">Processando Cards</h2>
-                <p className="text-white/40 text-sm">{progress.currentCard}</p>
-              </div>
-
-              <div className="space-y-4">
-                <div className="flex justify-between text-sm font-bold">
-                  <span className="text-orange-500">{progress.processed} de {progress.total}</span>
-                  <span>{progress.percentage}%</span>
-                </div>
-                <div className="h-3 w-full bg-white/5 rounded-full overflow-hidden border border-white/5">
-                  <div 
-                    className="h-full bg-gradient-to-r from-orange-600 to-orange-400 transition-all duration-500" 
-                    style={{ width: `${progress.percentage}%` }}
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ESTADO FINAL: Download dos Arquivos */}
-          {zipPath && (
-            <div className="bg-white/5 border border-white/10 rounded-3xl p-12 text-center space-y-10 animate-in zoom-in-95">
-              <div className="w-24 h-24 bg-green-500/20 rounded-full flex items-center justify-center mx-auto">
-                <CheckCircle2 className="w-12 h-12 text-green-500" />
-              </div>
-              
-              <div className="space-y-2">
-                <h2 className="text-3xl font-black uppercase">Sucesso!</h2>
-                <p className="text-white/40">Seus documentos foram gerados e estão prontos para download.</p>
-              </div>
-
-              <div className="grid grid-cols-1 gap-4">
-                <Button 
-                  onClick={() => window.location.href=`/api/download?path=${zipPath}`}
-                  className="bg-orange-600 hover:bg-orange-700 h-16 rounded-2xl font-bold flex items-center justify-center gap-3 text-lg"
-                >
-                  <Download className="w-6 h-6" /> BAIXAR PACOTE ZIP (CARDS)
-                </Button>
-
-                {jornalPath && (
-                  <Button 
-                    onClick={() => window.location.href=`/api/download?path=${jornalPath}`}
-                    className="bg-blue-600 hover:bg-blue-700 h-16 rounded-2xl font-bold flex items-center justify-center gap-3 text-lg"
-                  >
-                    <FileText className="w-6 h-6" /> BAIXAR JORNAL DIAGRAMADO (PDF)
-                  </Button>
-                )}
-
-                <button 
-                  onClick={resetProcess}
-                  className="mt-4 text-white/20 hover:text-white transition-colors text-sm font-medium uppercase tracking-widest"
-                >
-                  Fazer novo upload
-                </button>
-              </div>
-            </div>
-          )}
-        </main>
-
-        <footer className="mt-20 text-center border-t border-white/5 pt-10">
-          <p className="text-white/10 text-xs font-medium tracking-widest uppercase">
-            Sistema de Automação de Cards — Desenvolvido por Esio Lima
-          </p>
-        </footer>
-      </div>
-    </div>
-  );
+  async close() {
+    if (this.browser) await this.browser.close();
+  }
 }
