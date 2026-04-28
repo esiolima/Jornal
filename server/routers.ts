@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { publicProcedure, router } from "./trpc";
-import { CardGenerator } from "./cardGenerator"; 
+import { CardGenerator } from "./cardGenerator"; // CORRIGIDO: minúsculo conforme o arquivo
 import path from "path";
 
 const generator = new CardGenerator();
@@ -14,11 +14,15 @@ export const appRouter = router({
         sessionId: z.string() 
       }))
       .mutation(async ({ input }) => {
-        // FORÇA a conversão para string e resolve o caminho absoluto
-        const cleanPath = String(input.filePath);
-        const absolutePath = path.resolve(process.cwd(), cleanPath);
+        // Resolve o caminho absoluto e garante que é uma string
+        const absolutePath = path.resolve(process.cwd(), String(input.filePath));
+        const result = await generator.generateCards(absolutePath, input.sessionId);
         
-        return await generator.generateCards(absolutePath, input.sessionId);
+        // Retorno simplificado para evitar erro 400 de transformação no tRPC
+        return {
+          zipPath: result.zipPath,
+          jornalPath: result.jornalPath
+        };
       }),
   }),
 });
