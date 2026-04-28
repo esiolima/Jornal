@@ -49,7 +49,7 @@ export default function CardGenerator() {
       const res = await fetch("/api/upload", { method: "POST", body: formData });
       const data = await res.json();
 
-      // Garantindo que enviamos o caminho como string pura
+      // Forçando o path como string para evitar erro de objeto no tRPC
       const result = await generateMutation.mutateAsync({ 
         filePath: String(data.filePath), 
         sessionId 
@@ -128,10 +128,10 @@ export default function CardGenerator() {
               <ShieldCheck className="mx-auto text-green-500 mb-2" size={32} />
               <h3 className="font-bold text-sm uppercase">Processamento Finalizado</h3>
             </div>
-            <Button onClick={() => window.open(`/api/download?path=${zipPath}`)} className="bg-orange-600 hover:bg-orange-500 h-20 text-xl font-black rounded-2xl shadow-lg flex items-center justify-center gap-3 transition-transform active:scale-95">
+            <Button onClick={() => window.open(`/api/download?path=${zipPath}`)} className="bg-orange-600 hover:bg-orange-500 h-20 text-xl font-black rounded-2xl shadow-lg flex items-center justify-center gap-3">
                <Download size={28} /> DOWNLOAD ZIP (CARDS)
             </Button>
-            <Button onClick={() => window.open(`/api/download?path=${jornalPath}`)} className="bg-blue-700 hover:bg-blue-600 h-16 text-lg font-bold rounded-2xl flex items-center justify-center gap-3 transition-transform active:scale-95">
+            <Button onClick={() => window.open(`/api/download?path=${jornalPath}`)} className="bg-blue-700 hover:bg-blue-600 h-16 text-lg font-bold rounded-2xl flex items-center justify-center gap-3">
                <FileText size={24} /> DOWNLOAD JORNAL (PDF)
             </Button>
             <button onClick={() => window.location.reload()} className="text-white/20 hover:text-white text-[10px] uppercase font-bold pt-6 tracking-[0.2em]">Novo Processamento</button>
@@ -139,7 +139,6 @@ export default function CardGenerator() {
         )}
       </div>
 
-      {/* RODAPÉ RESTAURADO COM AUTOR E VERSÃO */}
       <footer className="w-full max-w-2xl mx-auto mt-12 pt-6 border-t border-white/5 flex justify-between items-center text-[10px] text-white/20 uppercase tracking-[0.2em]">
         <p>v1.2.7</p>
         <p>Desenvolvido por <span className="text-white/50 font-bold">SELPH MKT</span></p>
