@@ -3,7 +3,7 @@ import { io, Socket } from "socket.io-client";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
-import { Upload, CheckCircle2, Download, Hourglass, Image as ImageIcon } from "lucide-react";
+import { Upload, CheckCircle2, Download, Hourglass, Image as ImageIcon, AlertCircle, X } from "lucide-react";
 
 interface ProgressData {
   total: number;
@@ -30,7 +30,10 @@ export default function CardGenerator() {
     const socket = io({ reconnection: true, reconnectionDelay: 1000, reconnectionDelayMax: 5000, reconnectionAttempts: 5 });
     socket.on("connect", () => { socket.emit("join", sessionId); });
     socket.on("progress", (data: ProgressData) => setProgress(data));
-    socket.on("error", (message: string) => { setError(message); setIsProcessing(false); });
+    socket.on("error", (message: string) => { 
+      setError(message); 
+      setIsProcessing(false); 
+    });
     socketRef.current = socket;
     return () => { socket.disconnect(); };
   }, [sessionId]);
@@ -54,16 +57,26 @@ export default function CardGenerator() {
   const handleUpload = async () => {
     if (!file) return;
     setIsProcessing(true);
+    setError(null); // Limpa erros anteriores
     try {
       const formData = new FormData();
       formData.append("file", file);
       const uploadResponse = await fetch("/api/upload", { method: "POST", body: formData });
+      
+      if (!uploadResponse.ok) {
+        throw new Error("Falha no upload do arquivo.");
+      }
+
       const { filePath, fileName } = await uploadResponse.json();
       setOriginalFileName(fileName);
       const result = await generateCardsMutation.mutateAsync({ filePath, sessionId, originalFileName: fileName });
-      if (result.success) setZipPath(result.zipPath);
-    } catch (err) {
+      
+      if (result.success) {
+        setZipPath(result.zipPath);
+      }
+    } catch (err: any) {
       setIsProcessing(false);
+      setError(err.message || "Erro interno ao processar a planilha.");
     }
   };
 
@@ -79,6 +92,22 @@ export default function CardGenerator() {
           `
         }}></div>
       </div>
+
+      {/* Popup de Erro */}
+      {error && (
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 w-full max-w-md px-4 animate-in fade-in slide-in-from-top-4">
+          <div className="bg-red-950/90 border border-red-500/50 p-4 rounded-2xl flex items-start gap-4 shadow-2xl backdrop-blur-md">
+            <AlertCircle className="w-6 h-6 text-red-500 shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <h3 className="font-bold text-red-200">Erro detectado</h3>
+              <p className="text-sm text-red-300/80 leading-relaxed">{error}</p>
+            </div>
+            <button onClick={() => setError(null)} className="text-red-400 hover:text-white transition-colors">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="relative z-10 max-w-4xl mx-auto px-6 pt-24">
         <div className="max-w-2xl mx-auto space-y-10 text-center">
@@ -148,13 +177,14 @@ export default function CardGenerator() {
                 <div className="animate-spin inline-block"><Hourglass className="w-12 h-12 text-orange-400" /></div>
                 <h2 className="text-2xl font-bold">Processando Cards...</h2>
                 <div className="max-w-sm mx-auto space-y-3">
-                  <div className="flex justify-between text-sm text-white/50">
-                    <span>{progress.currentCard}</span>
-                    <span className="text-orange-400 font-bold">{progress.percentage}%</span>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-white/50">{progress.currentCard}</span>
+                    <span className="text-orange-400 font-bold">{progress.processed} de {progress.total}</span>
                   </div>
                   <div className="h-2 w-full bg-white/10 rounded-full overflow-hidden">
                     <div className="h-full bg-orange-500 transition-all duration-300" style={{ width: `${progress.percentage}%` }}></div>
                   </div>
+                  <p className="text-xs text-white/30">{progress.percentage}% concluído</p>
                 </div>
               </div>
             )}
