@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { publicProcedure, router } from "./trpc";
-import { CardGenerator } from "./cardGenerator"; // Nome exato do arquivo no seu GitHub
+import { CardGenerator } from "./cardGenerator"; // Nome corrigido (minúsculo)
 import path from "path";
 
 const generator = new CardGenerator();
@@ -14,8 +14,11 @@ export const appRouter = router({
         sessionId: z.string() 
       }))
       .mutation(async ({ input }) => {
-        // Garantindo que o path seja resolvido corretamente no Linux do Railway
-        const absolutePath = path.resolve(process.cwd(), input.filePath);
+        // Correção para o erro de 'instance of Object'
+        const absolutePath = path.isAbsolute(input.filePath) 
+          ? input.filePath 
+          : path.resolve(process.cwd(), input.filePath);
+          
         return await generator.generateCards(absolutePath, input.sessionId);
       }),
   }),
