@@ -15,7 +15,6 @@ const SELOS_DIR = path.join(BASE_DIR, "selos");
 export class CardGenerator extends EventEmitter {
   private browser: Browser | null = null;
 
-  // Inicializa o Puppeteer garantindo que as pastas existam
   initialize = async () => {
     if (!fs.existsSync(OUTPUT_DIR)) fs.mkdirSync(OUTPUT_DIR, { recursive: true });
     if (!fs.existsSync(TMP_DIR)) fs.mkdirSync(TMP_DIR, { recursive: true });
@@ -27,7 +26,6 @@ export class CardGenerator extends EventEmitter {
     });
   };
 
-  // Normaliza o tipo para encontrar o arquivo .html correspondente
   private normalizeType = (tipo: any): string => {
     const t = String(tipo || "").toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
     if (t.includes("promo")) return "promocao";
@@ -37,47 +35,38 @@ export class CardGenerator extends EventEmitter {
     return "promocao";
   };
 
-  // Converte imagens para Base64 para garantir renderização no PDF do Puppeteer
   private imageToBase64 = (p: string): string => {
     try {
       if (!fs.existsSync(p) || fs.lstatSync(p).isDirectory()) return "";
       const ext = path.extname(p).replace(".", "").toLowerCase();
       const mimeType = ext === 'svg' ? 'image/svg+xml' : `image/${ext === 'jpg' ? 'jpeg' : ext}`;
       return `data:${mimeType};base64,${fs.readFileSync(p).toString("base64")}`;
-    } catch { 
-      return ""; 
-    }
+    } catch { return ""; }
   };
 
-  // Método principal de geração
   generateCards = async (excelFilePath: string, sessionId: string) => {
     if (!this.browser) throw new Error("Browser não inicializado.");
     
-    // Garante que o caminho seja tratado como string
+    // Proteção extra de tipo
     const targetPath = typeof excelFilePath === 'string' ? excelFilePath : (excelFilePath as any).filePath;
     
     const workbook = xlsx.readFile(targetPath);
     const rows: any[] = xlsx.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { defval: "" });
     const total = rows.length;
-    
     let processedContent: any[] = [];
 
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
       const tipoOriginal = String(row.tipo || "Geral");
-      const tipoNormalizado = this.normalizeType(row.tipo);
+      const tipoNormalizado = this.normalizeType(row.tipo); // Contexto do 'this' seguro
       const templatePath = path.join(TEMPLATES_DIR, `${tipoNormalizado}.html`);
       
       if (!fs.existsSync(templatePath)) continue;
 
       let html = fs.readFileSync(templatePath, "utf8");
-
-      // Processamento de Imagens (Logos e Selos)
-      const logoPath = path.join(LOGOS_DIR, String(row.logo || ""));
-      const logoBase64 = this.imageToBase64(logoPath);
+      const logoBase64 = this.imageToBase64(path.join(LOGOS_DIR, String(row.logo || "")));
       const seloBase64 = row.selo ? this.imageToBase64(path.join(SELOS_DIR, `${row.selo}.png`)) : "";
 
-      // Injeção de Variáveis no HTML
       html = html
         .replace(/{{TEXTO}}/g, String(row.texto || ""))
         .replace(/{{VALOR}}/g, String(row.valor || ""))
@@ -96,31 +85,19 @@ export class CardGenerator extends EventEmitter {
       const pdfName = `Card_${i + 1}_${sessionId}.pdf`;
       const pdfPath = path.join(OUTPUT_DIR, pdfName);
       
-      await page.pdf({ 
-        path: pdfPath, 
-        width: "700px", 
-        height: "1058px", 
-        printBackground: true 
-      });
-      
+      await page.pdf({ path: pdfPath, width: "700px", height: "1058px", printBackground: true });
       await page.close();
 
-      processedContent.push({ 
-        pdfPath, 
-        pdfName 
-      });
+      processedContent.push({ pdfPath, pdfName });
       
-      // Emite o progresso com os dados para o seu novo painel frontal
       this.emit("progress", { 
         processed: i + 1, 
         total, 
         percentage: Math.round(((i + 1) / total) * 100),
-        currentCard: row.texto,
-        currentType: tipoOriginal // Exibido no centro da barra de progresso
+        currentType: tipoOriginal 
       });
     }
 
-    // Geração do arquivo ZIP
     const zipFileName = `Cards_${sessionId}.zip`;
     const zipPath = path.join(OUTPUT_DIR, zipFileName);
     const output = fs.createWriteStream(zipPath);
@@ -130,19 +107,13 @@ export class CardGenerator extends EventEmitter {
       output.on("close", resolve);
       archive.on("error", reject);
       archive.pipe(output);
-      processedContent.forEach(item => {
-        archive.file(item.pdfPath, { name: item.pdfName });
-      });
+      processedContent.forEach(item => archive.file(item.pdfPath, { name: item.pdfName }));
       archive.finalize();
     });
 
-    return { 
-      zipPath: zipFileName, 
-      jornalPath: "jornal_exemplo.pdf" // Substitua pela sua lógica de Jornal se houver
-    };
+    return { zipPath: zipFileName, jornalPath: "jornal_gerado.pdf" };
   };
 
-  // Fecha o browser com segurança
   close = async () => {
     if (this.browser) {
       await this.browser.close();
