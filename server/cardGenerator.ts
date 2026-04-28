@@ -84,7 +84,7 @@ export class CardGenerator extends EventEmitter {
       
       await page.pdf({ path: pdfPath, width: "700px", height: "1058px", printBackground: true });
       await page.close();
-      fs.unlinkSync(tmpHtmlPath); // Limpa o HTML temporário
+      if (fs.existsSync(tmpHtmlPath)) fs.unlinkSync(tmpHtmlPath);
 
       processedContent.push({ pdfPath, pdfName });
       
