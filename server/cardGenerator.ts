@@ -5,7 +5,7 @@ import archiver from "archiver";
 import xlsx from "xlsx";
 import { EventEmitter } from "events";
 
-const BASE_DIR = path.resolve();
+const BASE_DIR = process.cwd();
 const OUTPUT_DIR = path.join(BASE_DIR, "output");
 const TMP_DIR = path.join(BASE_DIR, "tmp");
 const TEMPLATES_DIR = path.join(BASE_DIR, "templates");
@@ -47,10 +47,7 @@ export class CardGenerator extends EventEmitter {
   generateCards = async (excelFilePath: string, sessionId: string) => {
     if (!this.browser) throw new Error("Browser não inicializado.");
     
-    // Garantindo que excelFilePath seja tratado como string
-    const targetPath = typeof excelFilePath === 'string' ? excelFilePath : (excelFilePath as any).filePath;
-    
-    const workbook = xlsx.readFile(targetPath);
+    const workbook = xlsx.readFile(excelFilePath);
     const rows: any[] = xlsx.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { defval: "" });
     const total = rows.length;
     let processedContent: any[] = [];
@@ -87,6 +84,7 @@ export class CardGenerator extends EventEmitter {
       
       await page.pdf({ path: pdfPath, width: "700px", height: "1058px", printBackground: true });
       await page.close();
+      fs.unlinkSync(tmpHtmlPath); // Limpa o HTML temporário
 
       processedContent.push({ pdfPath, pdfName });
       
