@@ -49,7 +49,7 @@ export default function CardGenerator() {
       const res = await fetch("/api/upload", { method: "POST", body: formData });
       const data = await res.json();
 
-      // Forçando o path como string para evitar erro de objeto no tRPC
+      // Forçando conversão para String para evitar erro de objeto no tRPC
       const result = await generateMutation.mutateAsync({ 
         filePath: String(data.filePath), 
         sessionId 
@@ -139,6 +139,7 @@ export default function CardGenerator() {
         )}
       </div>
 
+      {/* RODAPÉ COM NOME DO AUTOR E VERSÃO */}
       <footer className="w-full max-w-2xl mx-auto mt-12 pt-6 border-t border-white/5 flex justify-between items-center text-[10px] text-white/20 uppercase tracking-[0.2em]">
         <p>v1.2.7</p>
         <p>Desenvolvido por <span className="text-white/50 font-bold">SELPH MKT</span></p>
