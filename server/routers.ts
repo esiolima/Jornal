@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { publicProcedure, router } from "./trpc";
-import { CardGenerator } from "./cardGenerator"; // Nome corrigido (minúsculo)
+import { publicProcedure, router } from "./trpc"; // Deve apontar para o arquivo criado no passo 2
+import { CardGenerator } from "./cardGenerator"; // Nome minúsculo para bater com o arquivo
 import path from "path";
 
 const generator = new CardGenerator();
@@ -14,11 +14,7 @@ export const appRouter = router({
         sessionId: z.string() 
       }))
       .mutation(async ({ input }) => {
-        // Correção para o erro de 'instance of Object'
-        const absolutePath = path.isAbsolute(input.filePath) 
-          ? input.filePath 
-          : path.resolve(process.cwd(), input.filePath);
-          
+        const absolutePath = path.resolve(process.cwd(), input.filePath);
         return await generator.generateCards(absolutePath, input.sessionId);
       }),
   }),
