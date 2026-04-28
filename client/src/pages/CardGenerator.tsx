@@ -1,71 +1,7 @@
-import { useState, useRef, useEffect } from "react";
-import { io, Socket } from "socket.io-client";
-import { useLocation } from "wouter";
-import { trpc } from "@/lib/trpc";
-import { Button } from "@/components/ui/button";
-import { Upload, CheckCircle2, Download, Hourglass, Image as ImageIcon } from "lucide-react";
-
-interface ProgressData {
-  total: number;
-  processed: number;
-  percentage: number;
-  currentCard: string;
-}
+// ... (mantenha os imports e estados anteriores)
 
 export default function CardGenerator() {
-  const [file, setFile] = useState<File | null>(null);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [progress, setProgress] = useState<ProgressData | null>(null);
-  const [zipPath, setZipPath] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [sessionId] = useState(() => `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
-  const [isDragging, setIsDragging] = useState(false);
-  const [originalFileName, setOriginalFileName] = useState<string | null>(null);
-  const socketRef = useRef<Socket | null>(null);
-  const [, setLocation] = useLocation();
-
-  const generateCardsMutation = trpc.card.generateCards.useMutation();
-
-  useEffect(() => {
-    const socket = io({ reconnection: true, reconnectionDelay: 1000, reconnectionDelayMax: 5000, reconnectionAttempts: 5 });
-    socket.on("connect", () => { socket.emit("join", sessionId); });
-    socket.on("progress", (data: ProgressData) => setProgress(data));
-    socket.on("error", (message: string) => { setError(message); setIsProcessing(false); });
-    socketRef.current = socket;
-    return () => { socket.disconnect(); };
-  }, [sessionId]);
-
-  const handleFileSelect = (selectedFile: File | null | undefined) => {
-    if (!selectedFile) return;
-    setFile(selectedFile);
-    setError(null);
-    setZipPath(null);
-  };
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => handleFileSelect(e.target.files?.[0]);
-  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => { e.preventDefault(); setIsDragging(true); };
-  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => { e.preventDefault(); setIsDragging(false); };
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    setIsDragging(false);
-    handleFileSelect(e.dataTransfer.files[0]);
-  };
-
-  const handleUpload = async () => {
-    if (!file) return;
-    setIsProcessing(true);
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-      const uploadResponse = await fetch("/api/upload", { method: "POST", body: formData });
-      const { filePath, fileName } = await uploadResponse.json();
-      setOriginalFileName(fileName);
-      const result = await generateCardsMutation.mutateAsync({ filePath, sessionId, originalFileName: fileName });
-      if (result.success) setZipPath(result.zipPath);
-    } catch (err) {
-      setIsProcessing(false);
-    }
-  };
+  // ... (mantenha toda a lógica de estado, useEffect e handlers)
 
   return (
     <div className="relative min-h-screen font-sans overflow-hidden bg-[#08080f] text-white">
@@ -80,14 +16,11 @@ export default function CardGenerator() {
         }}></div>
       </div>
 
-      <div className="relative z-10 max-w-4xl mx-auto px-6">
-        {/* Nav Simplificada */}
-        <nav className="flex justify-start items-center py-8 border-b border-white/10 mb-16">
-          <span className="text-xl font-semibold tracking-tight">Gerador de <span className="text-orange-400">Cards</span></span>
-        </nav>
-
+      {/* Padding superior adicionado para compensar a remoção da Nav */}
+      <div className="relative z-10 max-w-4xl mx-auto px-6 pt-20">
+        
         <div className="max-w-2xl mx-auto space-y-10 text-center">
-          {/* Hero Section sem a badge de versão */}
+          {/* Hero Section */}
           <header className="space-y-4">
             <h1 className="text-5xl font-extrabold leading-tight tracking-tight">
               Transforme suas <br/><span className="text-orange-400">planilhas</span> em cards
@@ -148,35 +81,7 @@ export default function CardGenerator() {
               </>
             )}
 
-            {/* Estados de Processamento e Sucesso permanecem centralizados */}
-            {isProcessing && progress && (
-              <div className="bg-white/5 rounded-2xl p-10 border border-white/10 space-y-8">
-                <div className="animate-spin inline-block"><Hourglass className="w-12 h-12 text-orange-400" /></div>
-                <h2 className="text-2xl font-bold">Processando Cards...</h2>
-                <div className="max-w-sm mx-auto space-y-3">
-                  <div className="flex justify-between text-sm text-white/50">
-                    <span>{progress.currentCard}</span>
-                    <span className="text-orange-400 font-bold">{progress.percentage}%</span>
-                  </div>
-                  <div className="h-2 w-full bg-white/10 rounded-full overflow-hidden">
-                    <div className="h-full bg-orange-500 transition-all duration-300" style={{ width: `${progress.percentage}%` }}></div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {zipPath && (
-              <div className="bg-white/5 rounded-2xl p-10 border border-white/10 space-y-8">
-                 <CheckCircle2 className="w-16 h-16 text-teal-400 mx-auto" />
-                 <h2 className="text-2xl font-bold">Concluído com sucesso!</h2>
-                 <div className="max-w-sm mx-auto space-y-4">
-                   <Button onClick={() => window.location.href=`/api/download?zipPath=${zipPath}`} className="w-full bg-teal-600 hover:bg-teal-700 text-white h-14 rounded-xl font-bold text-lg">
-                     <Download className="w-5 h-5 mr-2" /> Baixar Cards (ZIP)
-                   </Button>
-                   <Button variant="ghost" onClick={() => { setFile(null); setZipPath(null); }} className="text-white/40">Novo processamento</Button>
-                 </div>
-              </div>
-            )}
+            {/* ... Restante dos estados de processamento e sucesso (mantenha igual) */}
           </div>
         </div>
 
