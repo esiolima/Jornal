@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { publicProcedure, router } from "./trpc"; // Deve apontar para o arquivo criado no passo 2
-import { CardGenerator } from "./cardGenerator"; // Nome minúsculo para bater com o arquivo
+import { publicProcedure, router } from "./trpc";
+import { CardGenerator } from "./cardGenerator"; 
 import path from "path";
 
 const generator = new CardGenerator();
@@ -14,7 +14,10 @@ export const appRouter = router({
         sessionId: z.string() 
       }))
       .mutation(async ({ input }) => {
-        const absolutePath = path.resolve(process.cwd(), input.filePath);
+        // FORÇA a conversão para string e resolve o caminho absoluto
+        const cleanPath = String(input.filePath);
+        const absolutePath = path.resolve(process.cwd(), cleanPath);
+        
         return await generator.generateCards(absolutePath, input.sessionId);
       }),
   }),
