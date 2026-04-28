@@ -1,32 +1,40 @@
-import { COOKIE_NAME } from "@shared/const";
-import { getSessionCookieOptions } from "./_core/cookies";
-import { systemRouter } from "./_core/systemRouter";
-import { publicProcedure, router } from "./_core/trpc";
-import { cardRouter } from "./routers/cardRouter";
-import { logoRouter } from "./routers/logoRouter";
+import { z } from "zod";
+import { publicProcedure, router } from "../_core/trpc";
+import { CardGenerator } from "../logic/CardGenerator"; // Certifique-se que o caminho está correto
 
-export const appRouter = router({
-    // if you need to use socket.io, read and register route in server/_core/index.ts, all api should start with '/api/' so that the gateway can route correctly
-  system: systemRouter,
-  card: cardRouter,
-  logo: logoRouter,
-  auth: router({
-    me: publicProcedure.query(opts => opts.ctx.user),
-    logout: publicProcedure.mutation(({ ctx }) => {
-      const cookieOptions = getSessionCookieOptions(ctx.req);
-      ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
-      return {
-        success: true,
-      } as const;
+export const cardRouter = router({
+  generateCards: publicProcedure
+    .input(
+      z.object({
+        filePath: z.string(),
+        sessionId: z.string(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      // 1. Criamos a instância
+      const generator = new CardGenerator();
+      
+      try {
+        // 2. Inicializamos o Puppeteer
+        await generator.initialize();
+        
+        // 3. Geramos os cards
+        const result = await generator.generateCards(input.filePath, input.sessionId);
+        
+        return {
+          success: true,
+          zipPath: result.zipPath,
+          jornalPath: result.jornalPath,
+        };
+      } catch (error: any) {
+        console.error("Erro no processamento de cards:", error);
+        throw new Error(error.message || "Falha ao gerar cards");
+      } finally {
+        // 4. SEMPRE fechamos o browser para não travar o servidor
+        // O erro acontecia aqui porque o método não existia ou o 'generator' estava indefinido
+        if (generator && typeof generator.close === 'function') {
+          await generator.close();
+        }
+      }
     }),
-  }),
-
-  // TODO: add feature routers here, e.g.
-  // todo: router({
-  //   list: protectedProcedure.query(({ ctx }) =>
-  //     db.getUserTodos(ctx.user.id)
-  //   ),
-  // }),
 });
-
-export type AppRouter = typeof appRouter;
