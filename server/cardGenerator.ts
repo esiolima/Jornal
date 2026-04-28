@@ -16,23 +16,18 @@ export class CardGenerator extends EventEmitter {
   private browser: Browser | null = null;
 
   async initialize() {
-    if (!fs.existsSync(OUTPUT_DIR))
-      fs.mkdirSync(OUTPUT_DIR, { recursive: true });
-
-    if (!fs.existsSync(TMP_DIR))
-      fs.mkdirSync(TMP_DIR, { recursive: true });
+    if (!fs.existsSync(OUTPUT_DIR)) fs.mkdirSync(OUTPUT_DIR, { recursive: true });
+    if (!fs.existsSync(TMP_DIR)) fs.mkdirSync(TMP_DIR, { recursive: true });
 
     this.browser = await puppeteer.launch({
-      executablePath:
-        process.env.PUPPETEER_EXECUTABLE_PATH || "/usr/bin/chromium",
-      args: ["--no-sandbox", "--disable-setuid-sandbox"],
+      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || "/usr/bin/chromium",
+      args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"],
       headless: true,
     });
   }
 
-  normalizeType(tipo: string): string {
+  private normalizeType(tipo: string): string {
     if (!tipo) return "";
-
     const normalized = String(tipo)
       .toLowerCase()
       .trim()
@@ -44,7 +39,6 @@ export class CardGenerator extends EventEmitter {
     if (normalized.includes("queda")) return "queda";
     if (normalized.includes("cashback")) return "cashback";
     if (normalized === "bc") return "bc";
-
     return "";
   }
 
@@ -60,19 +54,15 @@ export class CardGenerator extends EventEmitter {
 
   private getUniqueFilePath(filePath: string): string {
     if (!fs.existsSync(filePath)) return filePath;
-
     const ext = path.extname(filePath);
     const name = path.basename(filePath, ext);
     const dir = path.dirname(filePath);
-
     let counter = 2;
     let newPath = "";
-
     do {
       newPath = path.join(dir, `${name}_v${counter}${ext}`);
       counter++;
     } while (fs.existsSync(newPath));
-
     return newPath;
   }
 
@@ -87,195 +77,118 @@ export class CardGenerator extends EventEmitter {
     return `${dd}_${mm}_${aa}-${hh}_${min}_${ss}`;
   }
 
-  imageToBase64(imagePath: string): string {
+  private imageToBase64(imagePath: string): string {
     if (!imagePath || !fs.existsSync(imagePath) || fs.lstatSync(imagePath).isDirectory()) return "";
     const ext = path.extname(imagePath).replace(".", "").toLowerCase();
     const buffer = fs.readFileSync(imagePath);
-    
     let mimeType = `image/${ext}`;
     if (ext === "svg") mimeType = "image/svg+xml";
     if (ext === "jpg") mimeType = "image/jpeg";
-
     return `data:${mimeType};base64,${buffer.toString("base64")}`;
   }
 
   private findLogoFile(logoName: string): string {
     if (!logoName || String(logoName).trim() === "") return "blank.png";
-
     const cleanName = String(logoName).trim();
     const extensions = [".png", ".jpg", ".jpeg", ".webp", ".svg"];
-
-    if (fs.existsSync(path.join(LOGOS_DIR, cleanName))) {
-      return cleanName;
-    }
-
+    if (fs.existsSync(path.join(LOGOS_DIR, cleanName))) return cleanName;
     const searchName = cleanName.toLowerCase();
     const filesInLogos = fs.readdirSync(LOGOS_DIR);
-
     for (const ext of extensions) {
       const target = searchName.endsWith(ext) ? searchName : searchName + ext;
       const found = filesInLogos.find(f => f.toLowerCase() === target);
       if (found) return found;
     }
-
-    const validFiles = filesInLogos.filter(f => {
-      const ext = path.extname(f).toLowerCase();
-      return extensions.includes(ext);
-    });
-
-    const prefixMatch = validFiles.find(f => {
-      const baseName = path.parse(f).name.toLowerCase();
-      return baseName.startsWith(searchName);
-    });
-
-    if (prefixMatch) return prefixMatch;
-
-    return "blank.png";
+    const validFiles = filesInLogos.filter(f => extensions.includes(path.extname(f).toLowerCase()));
+    const prefixMatch = validFiles.find(f => path.parse(f).name.toLowerCase().startsWith(searchName));
+    return prefixMatch || "blank.png";
   }
 
-  async generateCards(
-    excelFilePath: string,
-    originalFileName?: string
-  ): Promise<string> {
-    if (!this.browser) throw new Error("Browser not initialized");
+  async generateCards(excelFilePath: string, originalFileName?: string): Promise<string> {
+    if (!this.browser) throw new Error("Motor de renderização não inicializado.");
 
-    fs.readdirSync(OUTPUT_DIR).forEach((file) => {
-      if (file.endsWith(".pdf") || file.endsWith(".zip")) {
-        fs.unlinkSync(path.join(OUTPUT_DIR, file));
-      }
-    });
+    // Limpeza de ambiente
+    if (fs.existsSync(OUTPUT_DIR)) {
+      fs.readdirSync(OUTPUT_DIR).forEach(f => (f.endsWith(".pdf") || f.endsWith(".zip")) && fs.unlinkSync(path.join(OUTPUT_DIR, f)));
+    }
 
     const workbook = xlsx.readFile(excelFilePath);
-    const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    const rows: any[] = xlsx.utils.sheet_to_json(sheet, { defval: "" });
-
+    const rows: any[] = xlsx.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { defval: "" });
     const total = rows.length;
     let processed = 0;
 
+    if (total === 0) throw new Error("A planilha está vazia.");
+
     for (const row of rows) {
-      const tipo = this.normalizeType(row.tipo);
-      if (!tipo) continue;
+      try {
+        const tipo = this.normalizeType(row.tipo);
+        if (!tipo) throw new Error(`Tipo de card '${row.tipo}' não é válido.`);
 
-      const templatePath = path.join(TEMPLATES_DIR, `${tipo}.html`);
-      if (!fs.existsSync(templatePath)) continue;
+        const templatePath = path.join(TEMPLATES_DIR, `${tipo}.html`);
+        if (!fs.existsSync(templatePath)) throw new Error(`Template '${tipo}.html' não encontrado.`);
 
-      let html = fs.readFileSync(templatePath, "utf8");
+        let html = fs.readFileSync(templatePath, "utf8");
+        const valorFinal = tipo !== "promocao" ? String(row.valor ?? "").replace(/%/g, "").trim() : String(row.valor ?? "");
+        const logoBase64 = this.imageToBase64(path.join(LOGOS_DIR, this.findLogoFile(row.logo)));
+        
+        const seloRaw = String(row.selo ?? "").trim().toLowerCase();
+        const seloFile = seloRaw === "nova" ? "acaonova.png" : seloRaw === "renovada" ? "acaorenovada.png" : "blank.png";
+        const seloBase64 = seloRaw ? this.imageToBase64(path.join(SELOS_DIR, seloFile)) : "";
 
-      let valorFinal = String(row.valor ?? "");
-      if (tipo !== "promocao") {
-        valorFinal = valorFinal.replace(/%/g, "").trim();
+        html = html
+          .replaceAll("{{TEXTO}}", String(row.texto ?? ""))
+          .replaceAll("{{VALOR}}", valorFinal)
+          .replaceAll("{{COMPLEMENTO}}", String(row.complemento ?? ""))
+          .replaceAll("{{LEGAL}}", String(row.legal ?? ""))
+          .replaceAll("{{SEGMENTO}}", String(row.segmento ?? "").trim())
+          .replaceAll("{{CUPOM}}", String(row.cupom ?? ""))
+          .replaceAll("{{UF}}", row.uf ? `UF: ${row.uf}` : "")
+          .replaceAll("{{URN}}", row.urn ? `URN: ${row.urn}` : "")
+          .replaceAll("{{LOGO}}", logoBase64)
+          .replaceAll("{{SELO}}", seloBase64);
+
+        const tmpHtmlPath = path.join(TMP_DIR, `card_${Date.now()}_${processed}.html`);
+        fs.writeFileSync(tmpHtmlPath, html);
+
+        const page = await this.browser.newPage();
+        await page.setViewport({ width: 700, height: 1058 });
+        await page.goto(`file://${tmpHtmlPath}`, { waitUntil: "networkidle0", timeout: 60000 });
+
+        const ordem = row.ordem && String(row.ordem).trim() !== "" ? String(row.ordem).trim() : String(processed + 1);
+        const categoria = this.sanitizeFileName(String(row.categoria || "sem-categoria"));
+        const pdfPath = path.join(OUTPUT_DIR, `${ordem}_${tipo}_${categoria}.pdf`);
+
+        await page.pdf({ path: pdfPath, width: "700px", height: "1058px", printBackground: true });
+        await page.close();
+        if (fs.existsSync(tmpHtmlPath)) fs.unlinkSync(tmpHtmlPath);
+
+        processed++;
+        this.emit("progress", {
+          processed,
+          total,
+          percentage: Math.round((processed / total) * 100),
+          currentCard: `Gerando: ${row.texto || 'Card ' + processed}`
+        });
+
+      } catch (err: any) {
+        this.emit("error", `Linha ${processed + 1}: ${err.message}`);
+        processed++; // Continua para o próximo mesmo com erro
       }
-
-      const logoFile = this.findLogoFile(row.logo);
-
-      const logoBase64 = this.imageToBase64(
-        path.join(LOGOS_DIR, logoFile)
-      );
-
-      const seloRaw = String(row.selo ?? "").trim().toLowerCase();
-      const seloBase64 = seloRaw
-        ? this.imageToBase64(
-            path.join(
-              SELOS_DIR,
-              seloRaw === "nova"
-                ? "acaonova.png"
-                : seloRaw === "renovada"
-                ? "acaorenovada.png"
-                : "blank.png"
-            )
-          )
-        : "";
-
-      const segmentoRaw =
-        row.segmento && String(row.segmento).trim() !== ""
-          ? String(row.segmento).trim()
-          : "";
-
-      html = html
-        .replaceAll("{{TEXTO}}", String(row.texto ?? ""))
-        .replaceAll("{{VALOR}}", valorFinal)
-        .replaceAll("{{COMPLEMENTO}}", String(row.complemento ?? ""))
-        .replaceAll("{{LEGAL}}", String(row.legal ?? ""))
-        .replaceAll("{{SEGMENTO}}", segmentoRaw)
-        .replaceAll("{{CUPOM}}", String(row.cupom ?? ""))
-        .replaceAll("{{UF}}", row.uf ? `UF: ${row.uf}` : "")
-        .replaceAll("{{URN}}", row.urn ? `URN: ${row.urn}` : "")
-        .replaceAll("{{LOGO}}", logoBase64)
-        .replaceAll("{{SELO}}", seloBase64);
-
-      const tmpHtmlPath = path.join(TMP_DIR, `card_${processed + 1}.html`);
-      fs.writeFileSync(tmpHtmlPath, html);
-
-      const page = await this.browser.newPage();
-      await page.setViewport({ width: 700, height: 1058 });
-
-      await page.goto(`file://${tmpHtmlPath}`, {
-        waitUntil: "networkidle0",
-      });
-
-      const ordemFinal =
-        row.ordem && String(row.ordem).trim() !== ""
-          ? String(row.ordem).trim()
-          : String(processed + 1);
-
-      const categoriaRaw =
-        row.categoria && String(row.categoria).trim() !== ""
-          ? String(row.categoria).trim()
-          : "sem-categoria";
-
-      const categoria = this.sanitizeFileName(categoriaRaw);
-
-      const pdfName = `${ordemFinal}_${tipo}_${categoria}.pdf`;
-      const pdfPath = path.join(OUTPUT_DIR, pdfName);
-
-      await page.pdf({
-        path: pdfPath,
-        width: "700px",
-        height: "1058px",
-        printBackground: true,
-        margin: {
-          top: "0px",
-          right: "0px",
-          bottom: "0px",
-          left: "0px",
-        },
-      });
-
-      await page.close();
-
-      processed++;
-
-      this.emit("progress", {
-        processed,
-        total,
-        percentage: Math.round((processed / total) * 100),
-      });
     }
 
-    const baseName = originalFileName
-      ? path.parse(originalFileName).name
-      : path.parse(excelFilePath).name;
-
-    const date = this.getDateStamp();
-    let zipName = `${baseName}_${date}.zip`;
-
-    let zipPath = path.join(OUTPUT_DIR, zipName);
-    zipPath = this.getUniqueFilePath(zipPath);
-
-    const output = fs.createWriteStream(zipPath);
-    const archive = archiver("zip", { zlib: { level: 9 } });
-
-    archive.pipe(output);
-
-    fs.readdirSync(OUTPUT_DIR).forEach((file) => {
-      if (file.endsWith(".pdf")) {
-        archive.file(path.join(OUTPUT_DIR, file), { name: file });
-      }
+    // Geração do ZIP
+    const baseName = originalFileName ? path.parse(originalFileName).name : "cards";
+    const zipPath = this.getUniqueFilePath(path.join(OUTPUT_DIR, `${baseName}_${this.getDateStamp()}.zip`));
+    
+    return new Promise((resolve, reject) => {
+      const output = fs.createWriteStream(zipPath);
+      const archive = archiver("zip", { zlib: { level: 9 } });
+      output.on("close", () => resolve(zipPath));
+      archive.on("error", (err) => reject(new Error(`Erro no ZIP: ${err.message}`)));
+      archive.pipe(output);
+      fs.readdirSync(OUTPUT_DIR).forEach(f => f.endsWith(".pdf") && archive.file(path.join(OUTPUT_DIR, f), { name: f }));
+      archive.finalize();
     });
-
-    await archive.finalize();
-
-    return zipPath;
   }
 
   async close() {
