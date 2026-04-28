@@ -47,7 +47,7 @@ export class CardGenerator extends EventEmitter {
   generateCards = async (excelFilePath: string, sessionId: string) => {
     if (!this.browser) throw new Error("Browser não inicializado.");
     
-    // Tratamento para garantir que o path seja string
+    // Garantindo que excelFilePath seja tratado como string
     const targetPath = typeof excelFilePath === 'string' ? excelFilePath : (excelFilePath as any).filePath;
     
     const workbook = xlsx.readFile(targetPath);
@@ -58,7 +58,7 @@ export class CardGenerator extends EventEmitter {
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
       const tipoOriginal = String(row.tipo || "Geral");
-      const tipoNormalizado = this.normalizeType(row.tipo); 
+      const tipoNormalizado = this.normalizeType(row.tipo);
       const templatePath = path.join(TEMPLATES_DIR, `${tipoNormalizado}.html`);
       
       if (!fs.existsSync(templatePath)) continue;
