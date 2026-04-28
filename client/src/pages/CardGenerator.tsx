@@ -26,10 +26,21 @@ export default function CardGenerator() {
     return () => { socket.disconnect(); };
   }, [sessionId]);
 
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const droppedFile = e.dataTransfer.files[0];
+    if (droppedFile?.name.endsWith(".xlsx")) {
+      setFile(droppedFile);
+    } else {
+      setError("Por favor, envie um arquivo Excel (.xlsx)");
+    }
+  };
+
   const handleUpload = async () => {
     if (!file) return;
     setIsProcessing(true);
-    setZipPath(null); // Limpa resultados anteriores
+    setZipPath(null);
     setJornalPath(null);
     setError(null);
     try {
@@ -38,6 +49,7 @@ export default function CardGenerator() {
       const res = await fetch("/api/upload", { method: "POST", body: formData });
       const data = await res.json();
 
+      // Correção para evitar erro de 'instance of Object'
       const result = await generateMutation.mutateAsync({ 
         filePath: String(data.filePath), 
         sessionId 
@@ -61,89 +73,68 @@ export default function CardGenerator() {
           </h1>
         </header>
 
-        {/* ÁREA DE UPLOAD / DRAG & DROP */}
+        {error && (
+          <div className="bg-red-500/10 border border-red-500/50 p-4 rounded-2xl flex justify-between items-center animate-in fade-in zoom-in-95">
+            <p className="text-red-400 text-xs font-mono">{error}</p>
+            <button onClick={() => setError(null)}><X size={16}/></button>
+          </div>
+        )}
+
         {!isProcessing && !zipPath ? (
           <div className="space-y-4">
             <div 
               onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
               onDragLeave={() => setIsDragging(false)}
-              onDrop={(e) => { e.preventDefault(); setIsDragging(false); setFile(e.dataTransfer.files[0]); }}
+              onDrop={handleDrop}
+              onClick={() => document.getElementById("file-input")?.click()}
               className={`border-2 border-dashed rounded-3xl p-20 text-center transition-all cursor-pointer ${
-                isDragging ? "border-orange-500 bg-orange-500/10" : "border-white/10 bg-white/[0.02]"
+                isDragging ? "border-orange-500 bg-orange-500/10 scale-[1.02]" : "border-white/10 bg-white/[0.02] hover:border-orange-500/20"
               }`}
             >
-              <Upload className="mx-auto mb-4 text-orange-500" size={48} />
-              <p className="font-bold">{file ? file.name : "Arraste a planilha aqui"}</p>
+              <input id="file-input" type="file" accept=".xlsx" hidden onChange={(e) => setFile(e.target.files?.[0] || null)} />
+              <Upload className={`mx-auto mb-4 ${isDragging ? "text-orange-500" : "text-orange-500/50"}`} size={48} />
+              <p className="font-bold text-lg">{file ? file.name : "Arraste a planilha aqui ou clique"}</p>
             </div>
-            <Button onClick={handleUpload} disabled={!file} className="w-full bg-orange-600 h-16 text-lg font-bold rounded-2xl">
-              GERAR CARDS
+            <Button onClick={handleUpload} disabled={!file} className="w-full bg-orange-600 hover:bg-orange-500 h-16 text-lg font-black rounded-2xl transition-all shadow-lg shadow-orange-900/20">
+              GERAR MATERIAIS
             </Button>
           </div>
         ) : isProcessing ? (
-          /* BARRA DE PROGRESSO COM OS 3 PONTOS DE DADOS SOLICITADOS */
           <div className="bg-white/5 p-10 rounded-3xl space-y-6 border border-white/10 shadow-2xl">
             <Hourglass className="mx-auto animate-spin text-orange-500" size={32} />
-            
             <div className="space-y-4">
               <div className="flex justify-between items-end">
-                {/* LADO ESQUERDO: TOTAL */}
                 <div className="flex flex-col">
-                  <span className="text-[10px] text-white/30 uppercase tracking-tighter">Total de Cards</span>
+                  <span className="text-[10px] text-white/30 uppercase tracking-tighter">Total</span>
                   <span className="text-xl font-black">{progress?.total || "0"}</span>
                 </div>
-
-                {/* CENTRO: TIPO SENDO PROCESSADO */}
                 <div className="text-center">
                   <span className="text-[10px] text-orange-500/50 uppercase tracking-widest font-bold">Processando</span>
-                  <p className="text-sm font-bold text-orange-200 uppercase tracking-tight">
-                    {progress?.currentType || "---"}
-                  </p>
+                  <p className="text-sm font-bold text-orange-200 uppercase tracking-tight">{progress?.currentType || "---"}</p>
                 </div>
-
-                {/* LADO DIREITO: PROCESSADOS */}
                 <div className="flex flex-col items-end">
                   <span className="text-[10px] text-white/30 uppercase tracking-tighter">Concluídos</span>
                   <span className="text-xl font-black text-green-500">{progress?.processed || "0"}</span>
                 </div>
               </div>
-
-              {/* BARRA VISUAL */}
               <div className="w-full bg-white/10 h-3 rounded-full overflow-hidden border border-white/5">
-                <div 
-                  className="bg-gradient-to-r from-orange-600 to-orange-400 h-full transition-all duration-500 shadow-[0_0_15px_rgba(249,115,22,0.4)]" 
-                  style={{ width: `${progress?.percentage || 0}%` }} 
-                />
+                <div className="bg-gradient-to-r from-orange-600 to-orange-400 h-full transition-all duration-500" style={{ width: `${progress?.percentage || 0}%` }} />
               </div>
             </div>
           </div>
         ) : (
-          /* BOTÕES FINAIS DE DOWNLOAD SOLICITADOS */
           <div className="grid gap-4 animate-in fade-in zoom-in-95 duration-500">
             <div className="bg-green-500/10 border border-green-500/20 p-6 rounded-3xl text-center mb-2">
               <ShieldCheck className="mx-auto text-green-500 mb-2" size={32} />
               <h3 className="font-bold text-sm uppercase">Processamento Finalizado</h3>
             </div>
-
-            <Button 
-              onClick={() => window.open(`/api/download?path=${zipPath}`)} 
-              className="bg-orange-600 hover:bg-orange-500 h-20 text-xl font-black rounded-2xl shadow-lg flex items-center justify-center gap-3 transition-transform active:scale-95"
-            >
+            <Button onClick={() => window.open(`/api/download?path=${zipPath}`)} className="bg-orange-600 hover:bg-orange-500 h-20 text-xl font-black rounded-2xl shadow-lg flex items-center justify-center gap-3 transition-transform active:scale-95">
                <Download size={28} /> DOWNLOAD ZIP (CARDS)
             </Button>
-
-            <Button 
-              onClick={() => window.open(`/api/download?path=${jornalPath}`)} 
-              className="bg-blue-700 hover:bg-blue-600 h-16 text-lg font-bold rounded-2xl flex items-center justify-center gap-3 transition-transform active:scale-95"
-            >
+            <Button onClick={() => window.open(`/api/download?path=${jornalPath}`)} className="bg-blue-700 hover:bg-blue-600 h-16 text-lg font-bold rounded-2xl flex items-center justify-center gap-3 transition-transform active:scale-95">
                <FileText size={24} /> DOWNLOAD JORNAL (PDF)
             </Button>
-
-            <button 
-              onClick={() => window.location.reload()} 
-              className="text-white/20 hover:text-white text-[10px] uppercase font-bold pt-6 tracking-[0.2em]"
-            >
-              Iniciar Novo Lote
-            </button>
+            <button onClick={() => window.location.reload()} className="text-white/20 hover:text-white text-[10px] uppercase font-bold pt-6 tracking-[0.2em]">Novo Processamento</button>
           </div>
         )}
       </div>
